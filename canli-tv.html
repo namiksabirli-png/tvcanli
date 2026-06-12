@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Açık Yayın — Dünya TV Kanalları</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
+<style>
+  :root{
+    --bg:#10141c;
+    --bg-2:#161c27;
+    --bg-3:#1d2533;
+    --line:#2a3447;
+    --text:#e8edf5;
+    --text-dim:#8b96a8;
+    --amber:#f5b942;
+    --amber-dim:#b8862a;
+    --live:#e35d5d;
+    --ok:#5dc98a;
+    --radius:10px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  /* ---------- ÜST BAR ---------- */
+  header{
+    display:flex;align-items:center;gap:14px;
+    padding:12px 18px;
+    background:var(--bg-2);
+    border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  .logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:.5px}
+  .logo .dot{width:10px;height:10px;border-radius:50%;background:var(--live);box-shadow:0 0 8px var(--live);animation:pulse 1.6s infinite}
+  @keyframes pulse{50%{opacity:.4}}
+  .logo small{color:var(--text-dim);font-weight:400;font-size:12px;margin-left:4px}
+  #search{
+    flex:1;min-width:160px;max-width:340px;
+    background:var(--bg-3);border:1px solid var(--line);
+    color:var(--text);padding:8px 12px;border-radius:var(--radius);
+    font-size:14px;outline:none;
+  }
+  #search:focus{border-color:var(--amber)}
+  #updateBtn{
+    display:flex;align-items:center;gap:8px;
+    background:var(--amber);color:#1a1206;border:none;
+    padding:9px 16px;border-radius:var(--radius);
+    font-size:14px;font-weight:600;cursor:pointer;
+    transition:filter .15s;
+  }
+  #updateBtn:hover{filter:brightness(1.1)}
+  #updateBtn:disabled{opacity:.55;cursor:wait}
+  #updateBtn .spin{display:inline-block;animation:rot 1s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  #lastUpdate{font-size:12px;color:var(--text-dim)}
+
+  /* ---------- ANA YERLEŞİM ---------- */
+  main{flex:1;display:flex;min-height:0}
+  /* Ülke sütunu */
+  #countries{
+    width:250px;min-width:200px;
+    overflow-y:auto;
+    border-right:1px solid var(--line);
+    background:var(--bg-2);
+  }
+  .col-title{
+    position:sticky;top:0;background:var(--bg-2);
+    padding:10px 14px;font-size:11px;letter-spacing:1.5px;
+    text-transform:uppercase;color:var(--text-dim);
+    border-bottom:1px solid var(--line);z-index:2;
+  }
+  .country{
+    display:flex;align-items:center;gap:10px;
+    padding:9px 14px;cursor:pointer;font-size:14px;
+    border-bottom:1px solid rgba(42,52,71,.4);
+  }
+  .country:hover{background:var(--bg-3)}
+  .country.active{background:var(--bg-3);box-shadow:inset 3px 0 0 var(--amber)}
+  .country .flag{font-size:18px;width:24px;text-align:center}
+  .country .cname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .country .count{font-size:11px;color:var(--text-dim);font-variant-numeric:tabular-nums}
+
+  /* Kanal sütunu */
+  #channels{
+    width:300px;min-width:230px;
+    overflow-y:auto;
+    border-right:1px solid var(--line);
+    background:var(--bg);
+  }
+  .channel{
+    display:flex;align-items:center;gap:10px;
+    padding:9px 14px;cursor:pointer;font-size:14px;
+    border-bottom:1px solid rgba(42,52,71,.35);
+  }
+  .channel:hover{background:var(--bg-3)}
+  .channel.active{background:var(--bg-3);box-shadow:inset 3px 0 0 var(--live)}
+  .channel img{width:30px;height:30px;object-fit:contain;border-radius:5px;background:#fff;flex-shrink:0}
+  .channel .noimg{width:30px;height:30px;border-radius:5px;background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--text-dim);flex-shrink:0}
+  .channel .chname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .channel .alt{font-size:10px;color:var(--text-dim);background:var(--bg-3);padding:2px 6px;border-radius:6px}
+
+  /* Oynatıcı alanı */
+  #playerArea{
+    flex:1;display:flex;flex-direction:column;
+    min-width:0;background:#0a0d13;
+  }
+  #playerHead{
+    display:flex;align-items:center;gap:12px;
+    padding:10px 16px;border-bottom:1px solid var(--line);
+    background:var(--bg-2);min-height:52px;
+  }
+  #nowTitle{font-weight:600;font-size:15px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #streamInfo{font-size:12px;color:var(--text-dim);white-space:nowrap}
+  .badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;white-space:nowrap}
+  .badge.live{background:rgba(227,93,93,.15);color:var(--live);border:1px solid rgba(227,93,93,.4)}
+  .badge.try{background:rgba(245,185,66,.12);color:var(--amber);border:1px solid rgba(245,185,66,.35)}
+  .badge.err{background:rgba(139,150,168,.12);color:var(--text-dim);border:1px solid var(--line)}
+  #videoWrap{flex:1;display:flex;align-items:center;justify-content:center;position:relative;min-height:0}
+  video{width:100%;height:100%;max-height:100%;background:#000;outline:none}
+  #placeholder{
+    text-align:center;color:var(--text-dim);padding:30px;max-width:420px;
+  }
+  #placeholder .tv{font-size:54px;margin-bottom:14px;filter:grayscale(.3)}
+  #placeholder h2{color:var(--text);font-size:18px;margin-bottom:8px;font-weight:600}
+  #placeholder p{font-size:13px;line-height:1.6}
+  #overlayMsg{
+    position:absolute;inset:0;display:none;
+    align-items:center;justify-content:center;flex-direction:column;gap:12px;
+    background:rgba(10,13,19,.85);color:var(--text);font-size:14px;text-align:center;padding:20px;
+  }
+  #overlayMsg .spin{font-size:28px;display:inline-block;animation:rot 1s linear infinite}
+  #overlayMsg button{
+    background:var(--bg-3);border:1px solid var(--line);color:var(--text);
+    padding:8px 16px;border-radius:var(--radius);cursor:pointer;font-size:13px;
+  }
+  #overlayMsg button:hover{border-color:var(--amber)}
+
+  /* Durum çubuğu */
+  footer{
+    padding:7px 18px;background:var(--bg-2);border-top:1px solid var(--line);
+    font-size:12px;color:var(--text-dim);display:flex;gap:16px;align-items:center;flex-wrap:wrap;
+  }
+  footer .stat b{color:var(--text)}
+  #toast{
+    position:fixed;bottom:54px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--bg-3);border:1px solid var(--amber);color:var(--text);
+    padding:10px 18px;border-radius:var(--radius);font-size:13px;
+    opacity:0;pointer-events:none;transition:.3s;z-index:50;max-width:90vw;text-align:center;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .loading-block{padding:24px;text-align:center;color:var(--text-dim);font-size:13px}
+  .empty{padding:24px;text-align:center;color:var(--text-dim);font-size:13px;line-height:1.6}
+
+  ::-webkit-scrollbar{width:9px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+  ::-webkit-scrollbar-thumb:hover{background:#3a4660}
+
+  /* Mobil */
+  @media (max-width:860px){
+    main{flex-direction:column;overflow-y:auto}
+    #countries,#channels{width:100%;min-width:0;max-height:240px;border-right:none;border-bottom:1px solid var(--line)}
+    #playerArea{min-height:300px}
+    header{gap:8px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .logo .dot,#updateBtn .spin,#overlayMsg .spin{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="dot"></span>AÇIK YAYIN<small>dünya kanalları</small></div>
+  <input id="search" type="text" placeholder="Ülke veya kanal ara…">
+  <button id="updateBtn" title="Kanal veritabanını yeniden indirir; değişen / yeni yayın adresleri güncellenir">
+    <span id="updIcon">⟳</span> Kanalları Güncelle
+  </button>
+  <span id="lastUpdate"></span>
+</header>
+
+<main>
+  <nav id="countries">
+    <div class="col-title">Ülkeler</div>
+    <div id="countryList"><div class="loading-block">Kanal listesi indiriliyor…</div></div>
+  </nav>
+
+  <section id="channels">
+    <div class="col-title" id="chColTitle">Kanallar</div>
+    <div id="channelList"><div class="empty">Soldan bir ülke seçin.<br>Kanallar burada listelenecek.</div></div>
+  </section>
+
+  <section id="playerArea">
+    <div id="playerHead">
+      <span id="nowTitle">Yayın seçilmedi</span>
+      <span id="streamInfo"></span>
+      <span id="liveBadge" class="badge err" style="display:none"></span>
+    </div>
+    <div id="videoWrap">
+      <div id="placeholder">
+        <div class="tv">📺</div>
+        <h2>İzlemeye hazır</h2>
+        <p>Bir ülke seçin, ardından kanala tıklayın. Yayın açılmazsa uygulama o kanalın diğer yayın adreslerini otomatik dener. Adresi tamamen değişen kanallar için üstteki <b style="color:var(--amber)">Kanalları Güncelle</b> düğmesini kullanın.</p>
+      </div>
+      <video id="video" controls playsinline style="display:none"></video>
+      <div id="overlayMsg"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span class="stat">Ülke: <b id="statCountries">–</b></span>
+  <span class="stat">İzlenebilir kanal: <b id="statChannels">–</b></span>
+  <span class="stat">Yayın adresi: <b id="statStreams">–</b></span>
+  <span style="margin-left:auto">Kaynak: iptv-org topluluk veritabanı (yalnızca halka açık ücretsiz yayınlar)</span>
+</footer>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+  const API = "https://iptv-org.github.io/api";
+
+  // Türkçe arayüzde öne çıkan ülke adları
+  const TR_NAMES = {
+    TR:"Türkiye", DE:"Almanya", US:"ABD", GB:"Birleşik Krallık", FR:"Fransa",
+    IT:"İtalya", ES:"İspanya", NL:"Hollanda", AZ:"Azerbaycan", RU:"Rusya",
+    GR:"Yunanistan", BG:"Bulgaristan", IR:"İran", IQ:"Irak", SA:"Suudi Arabistan",
+    AE:"BAE", EG:"Mısır", IN:"Hindistan", PK:"Pakistan", CN:"Çin", JP:"Japonya",
+    KR:"Güney Kore", BR:"Brezilya", AR:"Arjantin", MX:"Meksika", CA:"Kanada",
+    AU:"Avustralya", AT:"Avusturya", CH:"İsviçre", SE:"İsveç", NO:"Norveç",
+    DK:"Danimarka", FI:"Finlandiya", PL:"Polonya", UA:"Ukrayna", RO:"Romanya",
+    HU:"Macaristan", CZ:"Çekya", PT:"Portekiz", BE:"Belçika", RS:"Sırbistan",
+    HR:"Hırvatistan", BA:"Bosna-Hersek", MK:"Kuzey Makedonya", AL:"Arnavutluk",
+    GE:"Gürcistan", KZ:"Kazakistan", UZ:"Özbekistan", TM:"Türkmenistan",
+    KG:"Kırgızistan", CY:"Kıbrıs", IL:"İsrail", JO:"Ürdün", LB:"Lübnan",
+    SY:"Suriye", MA:"Fas", DZ:"Cezayir", TN:"Tunus", LY:"Libya", QA:"Katar",
+    KW:"Kuveyt", BH:"Bahreyn", OM:"Umman", YE:"Yemen", AF:"Afganistan",
+    ID:"Endonezya", MY:"Malezya", TH:"Tayland", VN:"Vietnam", PH:"Filipinler",
+    ZA:"Güney Afrika", NG:"Nijerya", KE:"Kenya", ET:"Etiyopya"
+  };
+
+  // Durum
+  let countries = [];                 // [{code,name,flag,channels:[...]}]
+  let channelsByCountry = new Map();  // code -> [channel]
+  let streamsByChannel = new Map();   // channelId -> [stream]
+  let activeCountry = null;
+  let activeChannelId = null;
+  let currentStreams = [];
+  let currentStreamIdx = 0;
+  let hls = null;
+  let totalChannels = 0, totalStreams = 0;
+
+  const $ = id => document.getElementById(id);
+  const video = $("video");
+
+  function flagEmoji(code){
+    if(!/^[A-Z]{2}$/.test(code)) return "🏳️";
+    return String.fromCodePoint(...[...code].map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
+  }
+  function toast(msg, ms=3200){
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(t._h);
+    t._h = setTimeout(()=>t.classList.remove("show"), ms);
+  }
+  function setBadge(type, text){
+    const b = $("liveBadge");
+    if(!type){ b.style.display="none"; return; }
+    b.style.display="inline-block";
+    b.className = "badge " + type;
+    b.textContent = text;
+  }
+  function showOverlay(html){
+    const o = $("overlayMsg");
+    o.innerHTML = html;
+    o.style.display = "flex";
+  }
+  function hideOverlay(){ $("overlayMsg").style.display = "none"; }
+
+  /* ---------------- VERİ İNDİRME / GÜNCELLEME ---------------- */
+  async function loadData(isUpdate){
+    const btn = $("updateBtn"), icon = $("updIcon");
+    btn.disabled = true;
+    icon.classList.add("spin");
+    if(isUpdate) toast("Kanal veritabanı güncelleniyor…");
+
+    try{
+      const bust = "?t=" + Date.now(); // her seferinde taze veri: değişen linkler böyle yakalanır
+      const [cRes, chRes, sRes] = await Promise.all([
+        fetch(API + "/countries.json" + bust),
+        fetch(API + "/channels.json"  + bust),
+        fetch(API + "/streams.json"   + bust)
+      ]);
+      if(!cRes.ok || !chRes.ok || !sRes.ok) throw new Error("API yanıt vermedi");
+      const [countryData, channelData, streamData] = await Promise.all([cRes.json(), chRes.json(), sRes.json()]);
+
+      // Eski link sayısını sakla (güncelleme raporu için)
+      const oldUrls = new Set();
+      if(isUpdate){
+        for(const list of streamsByChannel.values())
+          for(const s of list) oldUrls.add(s.url);
+      }
+
+      // Yayınları kanala göre grupla
+      const newStreams = new Map();
+      let streamCount = 0;
+      for(const s of streamData){
+        if(!s.channel || !s.url) continue;
+        if(!newStreams.has(s.channel)) newStreams.set(s.channel, []);
+        newStreams.get(s.channel).push(s);
+        streamCount++;
+      }
+
+      // Yayını olan kanalları ülkeye göre grupla
+      const newByCountry = new Map();
+      let chCount = 0;
+      for(const ch of channelData){
+        if(ch.closed) continue;
+        if(!newStreams.has(ch.id)) continue;
+        const cc = ch.country;
+        if(!cc) continue;
+        if(!newByCountry.has(cc)) newByCountry.set(cc, []);
+        newByCountry.get(cc).push(ch);
+        chCount++;
+      }
+      for(const list of newByCountry.values())
+        list.sort((a,b)=>a.name.localeCompare(b.name,"tr"));
+
+      // Ülke listesi
+      const newCountries = countryData
+        .filter(c => newByCountry.has(c.code))
+        .map(c => ({
+          code: c.code,
+          name: TR_NAMES[c.code] || c.name,
+          flag: flagEmoji(c.code),
+          count: newByCountry.get(c.code).length
+        }))
+        .sort((a,b)=>{
+          if(a.code==="TR") return -1;      // Türkiye en üstte
+          if(b.code==="TR") return 1;
+          return b.count - a.count;          // sonra kanal sayısına göre
+        });
+
+      // Güncelleme raporu
+      if(isUpdate){
+        let newUrls = 0;
+        for(const list of newStreams.values())
+          for(const s of list) if(!oldUrls.has(s.url)) newUrls++;
+        const removed = Math.max(0, totalStreams - (streamCount - newUrls) - 0);
+        toast(`Güncellendi ✓  ${newUrls} yeni/değişen yayın adresi alındı, eski adresler temizlendi.`, 4500);
+      }
+
+      countries = newCountries;
+      channelsByCountry = newByCountry;
+      streamsByChannel = newStreams;
+      totalChannels = chCount;
+      totalStreams = streamCount;
+
+      $("statCountries").textContent = countries.length;
+      $("statChannels").textContent = totalChannels.toLocaleString("tr-TR");
+      $("statStreams").textContent  = totalStreams.toLocaleString("tr-TR");
+      $("lastUpdate").textContent = "Son güncelleme: " + new Date().toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});
+
+      renderCountries();
+      if(activeCountry && channelsByCountry.has(activeCountry)) renderChannels(activeCountry);
+    }catch(err){
+      console.error(err);
+      $("countryList").innerHTML = '<div class="empty">Liste indirilemedi.<br>İnternet bağlantınızı kontrol edip <b>Kanalları Güncelle</b> düğmesine basın.</div>';
+      toast("Veri indirilemedi: " + err.message, 5000);
+    }finally{
+      btn.disabled = false;
+      icon.classList.remove("spin");
+    }
+  }
+
+  /* ---------------- LİSTELER ---------------- */
+  function renderCountries(filter){
+    const wrap = $("countryList");
+    const q = (filter||"").toLocaleLowerCase("tr");
+    const list = countries.filter(c => !q || c.name.toLocaleLowerCase("tr").includes(q));
+    if(!list.length){ wrap.innerHTML = '<div class="empty">Eşleşen ülke yok.</div>'; return; }
+    wrap.innerHTML = list.map(c => `
+      <div class="country ${c.code===activeCountry?'active':''}" data-code="${c.code}">
+        <span class="flag">${c.flag}</span>
+        <span class="cname">${c.name}</span>
+        <span class="count">${c.count}</span>
+      </div>`).join("");
+  }
+
+  function renderChannels(code, filter){
+    const country = countries.find(c=>c.code===code);
+    $("chColTitle").textContent = country ? `${country.flag} ${country.name} — Kanallar` : "Kanallar";
+    const wrap = $("channelList");
+    const q = (filter||"").toLocaleLowerCase("tr");
+    const list = (channelsByCountry.get(code)||[])
+      .filter(ch => !q || ch.name.toLocaleLowerCase("tr").includes(q));
+    if(!list.length){ wrap.innerHTML = '<div class="empty">Eşleşen kanal yok.</div>'; return; }
+    wrap.innerHTML = list.map(ch => {
+      const n = (streamsByChannel.get(ch.id)||[]).length;
+      const logo = ch.logo
+        ? `<img src="${ch.logo}" loading="lazy" onerror="this.outerHTML='<div class=noimg>📺</div>'">`
+        : `<div class="noimg">📺</div>`;
+      return `
+      <div class="channel ${ch.id===activeChannelId?'active':''}" data-id="${ch.id}" data-name="${ch.name.replace(/"/g,'&quot;')}">
+        ${logo}
+        <span class="chname">${ch.name}</span>
+        ${n>1?`<span class="alt">${n} kaynak</span>`:""}
+      </div>`;
+    }).join("");
+  }
+
+  /* ---------------- OYNATICI ---------------- */
+  function stopPlayback(){
+    if(hls){ hls.destroy(); hls = null; }
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+  }
+
+  function playChannel(channelId, channelName){
+    currentStreams = streamsByChannel.get(channelId) || [];
+    currentStreamIdx = 0;
+    activeChannelId = channelId;
+    $("nowTitle").textContent = channelName;
+    $("placeholder").style.display = "none";
+    video.style.display = "block";
+    renderChannels(activeCountry, $("search")._chFilter);
+    tryCurrentStream(channelName);
+  }
+
+  function tryCurrentStream(channelName){
+    stopPlayback();
+    hideOverlay();
+    if(currentStreamIdx >= currentStreams.length){
+      setBadge("err","yayın yok");
+      $("streamInfo").textContent = "";
+      showOverlay(`
+        <div style="font-size:34px">📡</div>
+        <div><b>${channelName}</b> için şu an çalışan yayın adresi bulunamadı.</div>
+        <div style="color:var(--text-dim);font-size:12px;max-width:380px">Bu kanalın adresi değişmiş olabilir. Veritabanını yenilemek için aşağıdaki düğmeyi kullanın; topluluk yeni adresi eklediyse otomatik gelir.</div>
+        <button onclick="document.getElementById('updateBtn').click()">⟳ Kanalları Güncelle</button>`);
+      return;
+    }
+
+    const stream = currentStreams[currentStreamIdx];
+    const total = currentStreams.length;
+    $("streamInfo").textContent = `kaynak ${currentStreamIdx+1}/${total}` + (stream.quality ? " · " + stream.quality : "");
+    setBadge("try","bağlanıyor…");
+    showOverlay(`<span class="spin">⟳</span><div>Yayına bağlanılıyor… (kaynak ${currentStreamIdx+1}/${total})</div>`);
+
+    const fail = () => {
+      currentStreamIdx++;
+      if(currentStreamIdx < total){
+        toast(`Kaynak ${currentStreamIdx}/${total} açılmadı, sıradaki deneniyor…`, 2200);
+      }
+      tryCurrentStream(channelName);
+    };
+
+    // 14 sn içinde oynatma başlamazsa sıradaki kaynağa geç
+    let watchdog = setTimeout(fail, 14000);
+    const onPlaying = () => {
+      clearTimeout(watchdog);
+      hideOverlay();
+      setBadge("live","● CANLI");
+    };
+    video.addEventListener("playing", onPlaying, { once:true });
+
+    const url = stream.url;
+    if(window.Hls && Hls.isSupported()){
+      hls = new Hls({ manifestLoadingMaxRetry:1, levelLoadingMaxRetry:1, fragLoadingMaxRetry:1 });
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(()=>{}));
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if(data.fatal){
+          clearTimeout(watchdog);
+          video.removeEventListener("playing", onPlaying);
+          fail();
+        }
+      });
+    } else if(video.canPlayType("application/vnd.apple.mpegurl")){
+      video.src = url;
+      video.addEventListener("error", () => { clearTimeout(watchdog); fail(); }, { once:true });
+      video.play().catch(()=>{});
+    } else {
+      clearTimeout(watchdog);
+      showOverlay("Tarayıcınız HLS yayınlarını desteklemiyor.");
+    }
+  }
+
+  /* ---------------- OLAYLAR ---------------- */
+  $("countryList").addEventListener("click", e => {
+    const el = e.target.closest(".country");
+    if(!el) return;
+    activeCountry = el.dataset.code;
+    $("search").value = "";
+    $("search")._chFilter = "";
+    renderCountries();
+    renderChannels(activeCountry);
+  });
+
+  $("channelList").addEventListener("click", e => {
+    const el = e.target.closest(".channel");
+    if(!el) return;
+    playChannel(el.dataset.id, el.dataset.name);
+  });
+
+  $("search").addEventListener("input", e => {
+    const q = e.target.value.trim();
+    if(activeCountry){
+      // ülke seçiliyken arama hem ülkeleri hem kanalları süzer
+      e.target._chFilter = q;
+      renderCountries(q);
+      renderChannels(activeCountry, q);
+    } else {
+      renderCountries(q);
+    }
+  });
+
+  $("updateBtn").addEventListener("click", () => loadData(true));
+
+  // Başlangıç
+  loadData(false);
+})();
+</script>
+</body>
+</html>
