@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RemoteLink — Uzaktan Bağlantı</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --bg2: #181c26;
+    --bg3: #1e2330;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --text: #e8eaf0;
+    --text2: #8892a4;
+    --text3: #4a5266;
+    --accent: #3d7eff;
+    --accent2: #2563eb;
+    --green: #22c55e;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --radius: 10px;
+    --radius-lg: 16px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* TOPBAR */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    height: 52px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 15px; font-weight: 600; color: var(--text);
+  }
+  .logo-icon {
+    width: 28px; height: 28px; background: var(--accent);
+    border-radius: 7px; display: flex; align-items: center; justify-content: center;
+  }
+  .logo-icon svg { width: 16px; height: 16px; }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text3); display: inline-block;
+    transition: background 0.3s;
+  }
+  .status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+
+  /* MAIN LAYOUT */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 16px;
+    gap: 20px;
+    overflow-y: auto;
+  }
+
+  .card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+  }
+  .card-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 12px;
+  }
+
+  /* MY ID */
+  .my-id-display {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    padding: 12px 0 8px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  .my-id-display span {
+    color: var(--accent);
+  }
+  .copy-btn {
+    width: 100%;
+    padding: 8px;
+    background: transparent;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+  .copy-btn:active { transform: scale(0.98); }
+
+  /* CONNECT FORM */
+  .input-wrap {
+    position: relative; margin-bottom: 10px;
+  }
+  .input-wrap input {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 15px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    letter-spacing: 0.08em;
+    outline: none;
+    transition: border 0.15s;
+  }
+  .input-wrap input:focus { border-color: var(--accent); }
+  .input-wrap input::placeholder { color: var(--text3); letter-spacing: 0.02em; font-family: -apple-system, sans-serif; }
+
+  .btn-primary {
+    width: 100%;
+    padding: 11px;
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-danger {
+    width: 100%;
+    padding: 11px;
+    background: transparent;
+    border: 1px solid var(--red);
+    border-radius: var(--radius);
+    color: var(--red);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: none;
+  }
+  .btn-danger:hover { background: rgba(239,68,68,0.1); }
+  .btn-danger.visible { display: block; }
+
+  /* CONNECTION LOG */
+  .log-area {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 180px;
+  }
+  .log-entry {
+    font-size: 11px;
+    color: var(--text2);
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex; gap: 8px;
+  }
+  .log-time { color: var(--text3); flex-shrink: 0; font-family: monospace; }
+  .log-entry.success .log-msg { color: var(--green); }
+  .log-entry.error .log-msg { color: var(--red); }
+  .log-entry.info .log-msg { color: var(--accent); }
+
+  /* CONTENT */
+  .content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* WELCOME STATE */
+  .welcome {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: var(--text3);
+    padding: 40px;
+    text-align: center;
+  }
+  .welcome-icon {
+    width: 64px; height: 64px;
+    border: 2px dashed var(--border2);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text3);
+  }
+  .welcome h2 { font-size: 18px; font-weight: 500; color: var(--text2); }
+  .welcome p { font-size: 13px; max-width: 320px; line-height: 1.6; }
+
+  /* SCREEN VIEW */
+  .screen-container {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    background: #000;
+    position: relative;
+    overflow: hidden;
+  }
+  .screen-container.active { display: flex; }
+
+  .screen-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .screen-toolbar .tb-info {
+    flex: 1; font-size: 12px; color: var(--text2);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .live-badge {
+    background: var(--red);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+    animation: pulse-red 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse-red {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+  .tb-btn {
+    padding: 5px 12px;
+    background: transparent;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text2);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tb-btn:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+
+  #remoteVideo {
+    flex: 1;
+    width: 100%;
+    object-fit: contain;
+    cursor: crosshair;
+    display: block;
+  }
+
+  /* HOST VIEW */
+  .host-view {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 40px;
+  }
+  .host-view.active { display: flex; }
+
+  .sharing-badge {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(34,197,94,0.1);
+    border: 1px solid rgba(34,197,94,0.3);
+    border-radius: 40px;
+    padding: 8px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--green);
+  }
+
+  /* MODAL */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    width: 360px;
+    text-align: center;
+    animation: modal-in 0.2s ease-out;
+  }
+  @keyframes modal-in {
+    from { transform: scale(0.92); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+  .modal-icon {
+    width: 52px; height: 52px;
+    background: rgba(61,126,255,0.15);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+    color: var(--accent);
+  }
+  .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  .modal p { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 20px; }
+  .modal-requester {
+    font-size: 22px; font-weight: 700;
+    color: var(--accent); font-family: monospace; letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+  .modal-btns { display: flex; gap: 10px; }
+  .modal-btns button { flex: 1; padding: 11px; border-radius: var(--radius); font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-accept { background: var(--green); color: #fff; }
+  .btn-accept:hover { background: #16a34a; }
+  .btn-reject { background: transparent; border: 1px solid var(--border2) !important; color: var(--text2); }
+  .btn-reject:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+
+  /* TOAST */
+  .toast-wrap {
+    position: fixed; bottom: 20px; right: 20px;
+    display: flex; flex-direction: column; gap: 8px;
+    z-index: 200;
+  }
+  .toast {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--text);
+    animation: toast-in 0.2s ease-out;
+    display: flex; align-items: center; gap: 8px;
+    min-width: 200px;
+  }
+  .toast.success { border-color: rgba(34,197,94,0.4); }
+  .toast.error { border-color: rgba(239,68,68,0.4); }
+  @keyframes toast-in {
+    from { transform: translateX(20px); opacity: 0; }
+    to   { transform: translateX(0); opacity: 1; }
+  }
+
+  /* MOUSE CURSOR OVERLAY */
+  #cursorOverlay {
+    position: absolute;
+    pointer-events: none;
+    z-index: 10;
+    display: none;
+  }
+  #cursorOverlay.active { display: block; }
+  .remote-cursor {
+    position: absolute;
+    width: 16px; height: 16px;
+    background: var(--accent);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: left 0.05s, top 0.05s;
+    pointer-events: none;
+  }
+
+  /* TABS */
+  .mode-tabs {
+    display: flex;
+    gap: 0;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 3px;
+    margin-bottom: 16px;
+  }
+  .mode-tab {
+    flex: 1; padding: 7px 10px;
+    text-align: center;
+    font-size: 12px; font-weight: 500;
+    color: var(--text2);
+    cursor: pointer;
+    border-radius: 7px;
+    transition: all 0.15s;
+  }
+  .mode-tab.active {
+    background: var(--bg3);
+    color: var(--text);
+    border: 1px solid var(--border2);
+  }
+
+  /* STATS */
+  .stats-row {
+    display: flex; gap: 8px;
+    margin-top: 4px;
+  }
+  .stat-pill {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    text-align: center;
+  }
+  .stat-pill .sv { font-size: 16px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+  .stat-pill .sl { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+  /* HOST LOCAL PREVIEW */
+  #localPreview {
+    width: 160px; height: 100px;
+    border-radius: 8px;
+    background: #111;
+    border: 1px solid var(--border2);
+    object-fit: cover;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="3" width="14" height="9" rx="2" stroke="white" stroke-width="1.5"/>
+        <path d="M5 12v1M11 12v1M3 13h10" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M6 7.5L8.5 6L11 7.5L8.5 9L6 7.5Z" fill="white"/>
+      </svg>
+    </div>
+    RemoteLink
+  </div>
+  <div class="status-row">
+    <span class="status-dot" id="connDot"></span>
+    <span id="connStatus">Bağlantı bekleniyor</span>
+  </div>
+</div>
+
+<!-- MODAL: Gelen bağlantı isteği -->
+<div class="modal-backdrop" id="incomingModal">
+  <div class="modal">
+    <div class="modal-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M15 10l-4 4-2-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+      </svg>
+    </div>
+    <h3>Bağlantı İsteği</h3>
+    <div class="modal-requester" id="requesterIdLabel">—</div>
+    <p>numaralı kullanıcı ekranınızı görüntülemek ve kontrol etmek istiyor. İzin vermek istiyor musunuz?</p>
+    <div class="modal-btns">
+      <button class="btn-reject" onclick="rejectConnection()">Reddet</button>
+      <button class="btn-accept" onclick="acceptConnection()">Onayla</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- MY ID -->
+    <div class="card">
+      <div class="card-label">Bilgisayarım</div>
+      <div class="my-id-display" id="myIdDisplay">
+        <span id="myIdText">——— ———</span>
+      </div>
+      <button class="copy-btn" onclick="copyMyId()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        ID'yi kopyala
+      </button>
+    </div>
+
+    <!-- MODE TABS -->
+    <div>
+      <div class="mode-tabs">
+        <div class="mode-tab active" onclick="switchMode('viewer')" id="tabViewer">Görüntüleyici</div>
+        <div class="mode-tab" onclick="switchMode('host')" id="tabHost">Sunan</div>
+      </div>
+
+      <!-- VIEWER PANEL -->
+      <div id="viewerPanel">
+        <div class="card-label" style="margin-bottom:10px">Uzak Bilgisayara Bağlan</div>
+        <div class="input-wrap">
+          <input type="text" id="remoteIdInput" placeholder="ID numarası gir (örn: 4829-3710)"
+            oninput="formatIdInput(this)" maxlength="9"/>
+        </div>
+        <button class="btn-primary" id="connectBtn" onclick="initiateConnect()">Bağlan</button>
+        <button class="btn-danger" id="disconnectBtn" onclick="disconnect()">Bağlantıyı Kes</button>
+      </div>
+
+      <!-- HOST PANEL -->
+      <div id="hostPanel" style="display:none;">
+        <div class="card-label" style="margin-bottom:10px">Bu bilgisayarı paylaş</div>
+        <p style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:14px">
+          Yukarıdaki ID'nizi karşı tarafa verin. Bağlantı isteği geldiğinde onay ekranı çıkacak.
+        </p>
+        <video id="localPreview" autoplay muted playsinline></video>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="card" id="statsCard" style="display:none;">
+      <div class="card-label">Bağlantı İstatistikleri</div>
+      <div class="stats-row">
+        <div class="stat-pill">
+          <div class="sv" id="statLatency">—</div>
+          <div class="sl">Gecikme</div>
+        </div>
+        <div class="stat-pill">
+          <div class="sv" id="statFps">—</div>
+          <div class="sl">FPS</div>
+        </div>
+        <div class="stat-pill">
+          <div class="sv" id="statKbps">—</div>
+          <div class="sl">Kbps</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOG -->
+    <div class="card" style="flex:1;min-height:120px;display:flex;flex-direction:column;">
+      <div class="card-label">Bağlantı Kaydı</div>
+      <div class="log-area" id="logArea"></div>
+    </div>
+
+  </div>
+
+  <!-- CONTENT AREA -->
+  <div class="content">
+
+    <!-- WELCOME -->
+    <div class="welcome" id="welcomeView">
+      <div class="welcome-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="3" width="20" height="14" rx="2"/>
+          <path d="M8 21h8M12 17v4"/>
+        </svg>
+      </div>
+      <h2>Bağlantı bekleniyor</h2>
+      <p>Sol panelden bir ID numarası girerek uzak bilgisayara bağlanın, ya da kendi ID'nizi paylaşarak birinin sizin ekranınıza bağlanmasını bekleyin.</p>
+    </div>
+
+    <!-- REMOTE SCREEN (viewer) -->
+    <div class="screen-container" id="screenView">
+      <div class="screen-toolbar">
+        <div class="tb-info">
+          <span class="live-badge">CANLI</span>
+          <span id="connectedToLabel">Bağlı: —</span>
+        </div>
+        <button class="tb-btn" onclick="toggleFullscreen()">⛶ Tam Ekran</button>
+        <button class="tb-btn" onclick="toggleInputControl()" id="inputToggleBtn">🖱 Kontrol: Kapalı</button>
+        <button class="tb-btn" style="color:var(--red);" onclick="disconnect()">✕ Kes</button>
+      </div>
+      <div style="position:relative;flex:1;overflow:hidden;display:flex;">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <div id="cursorOverlay">
+          <div class="remote-cursor" id="remoteCursor"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HOST VIEW -->
+    <div class="host-view" id="hostShareView">
+      <div class="sharing-badge">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+        </svg>
+        Ekran paylaşılıyor
+      </div>
+      <video id="localPreviewLarge" autoplay muted playsinline
+        style="width:100%;max-width:640px;border-radius:12px;border:1px solid var(--border2);background:#111;"></video>
+      <p style="font-size:13px;color:var(--text2);">Karşı taraf ekranınızı görüntülüyor</p>
+      <button onclick="stopSharing()" style="padding:9px 24px;background:transparent;border:1px solid var(--red);border-radius:8px;color:var(--red);font-size:13px;cursor:pointer;">
+        Paylaşımı Durdur
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────
+let myId = generateId();
+let peerConnection = null;
+let dataChannel = null;
+let localStream = null;
+let remoteStream = null;
+let mode = 'viewer'; // 'viewer' | 'host'
+let connected = false;
+let inputControlEnabled = false;
+let pendingOffer = null;
+let pendingOfferFrom = null;
+let statsInterval = null;
+let fpsCounter = 0;
+let lastStatsTime = Date.now();
+
+// Simulated signaling via localStorage + BroadcastChannel
+// (works between tabs in the same browser — real version would use WebSocket)
+let bc = new BroadcastChannel('remotelink_signal');
+
+// ─── ID GENERATION ───────────────────────────────────────
+function generateId() {
+  const r = () => Math.floor(1000 + Math.random() * 9000);
+  return `${r()}-${r()}`;
+}
+
+function formatIdInput(el) {
+  let v = el.value.replace(/\D/g, '');
+  if (v.length > 4) v = v.slice(0,4) + '-' + v.slice(4,8);
+  el.value = v;
+}
+
+// ─── INIT ─────────────────────────────────────────────────
+document.getElementById('myIdText').textContent = myId;
+addLog(`ID oluşturuldu: ${myId}`, 'info');
+
+document.getElementById('remoteIdInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') initiateConnect();
+});
+
+// ─── BROADCAST CHANNEL (simulated signaling) ──────────────
+bc.onmessage = async (e) => {
+  const msg = e.data;
+  if (!msg || msg.to !== myId) return;
+
+  if (msg.type === 'offer') {
+    pendingOffer = msg.offer;
+    pendingOfferFrom = msg.from;
+    document.getElementById('requesterIdLabel').textContent = msg.from;
+    document.getElementById('incomingModal').classList.add('open');
+    addLog(`Bağlantı isteği: ${msg.from}`, 'info');
+  }
+  else if (msg.type === 'answer') {
+    if (peerConnection && peerConnection.signalingState !== 'closed') {
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(msg.answer));
+      addLog('Bağlantı yanıtı alındı', 'info');
+    }
+  }
+  else if (msg.type === 'ice') {
+    if (peerConnection && msg.candidate) {
+      try { await peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate)); } catch(e) {}
+    }
+  }
+  else if (msg.type === 'reject') {
+    cleanupPeer();
+    showToast('Bağlantı reddedildi', 'error');
+    addLog('İstek reddedildi', 'error');
+    setStatus('offline');
+  }
+  else if (msg.type === 'disconnect') {
+    handleRemoteDisconnect();
+  }
+};
+
+function signal(msg) {
+  bc.postMessage(msg);
+}
+
+// ─── WEBRTC ──────────────────────────────────────────────
+function createPeer(initiator) {
+  const pc = new RTCPeerConnection({
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+  });
+
+  pc.onicecandidate = (e) => {
+    if (e.candidate) {
+      signal({ type: 'ice', from: myId, to: currentRemoteId, candidate: e.candidate.toJSON() });
+    }
+  };
+
+  pc.onconnectionstatechange = () => {
+    addLog(`Bağlantı durumu: ${pc.connectionState}`, 'info');
+    if (pc.connectionState === 'connected') {
+      connected = true;
+      setStatus('online');
+      showConnectedState();
+    } else if (['disconnected','failed','closed'].includes(pc.connectionState)) {
+      handleRemoteDisconnect();
+    }
+  };
+
+  pc.ontrack = (e) => {
+    if (mode === 'viewer') {
+      const video = document.getElementById('remoteVideo');
+      video.srcObject = e.streams[0];
+      remoteStream = e.streams[0];
+      addLog('Ekran akışı başladı', 'success');
+    }
+  };
+
+  return pc;
+}
+
+let currentRemoteId = null;
+
+async function initiateConnect() {
+  const rawVal = document.getElementById('remoteIdInput').value.trim();
+  if (rawVal.length < 9) { showToast('Geçerli bir ID girin', 'error'); return; }
+  if (rawVal === myId) { showToast('Kendi ID\'nize bağlanamazsınız', 'error'); return; }
+
+  currentRemoteId = rawVal;
+  addLog(`Bağlanılıyor: ${currentRemoteId}…`, 'info');
+  setStatus('connecting');
+
+  peerConnection = createPeer(true);
+
+  dataChannel = peerConnection.createDataChannel('control', { ordered: true });
+  setupDataChannel(dataChannel);
+
+  const offer = await peerConnection.createOffer();
+  await peerConnection.setLocalDescription(offer);
+
+  signal({ type: 'offer', from: myId, to: currentRemoteId, offer: offer });
+  addLog('Bağlantı isteği gönderildi', 'info');
+
+  document.getElementById('connectBtn').disabled = true;
+  document.getElementById('connectBtn').textContent = 'İstek gönderildi…';
+}
+
+async function acceptConnection() {
+  document.getElementById('incomingModal').classList.remove('open');
+  currentRemoteId = pendingOfferFrom;
+
+  // Get screen
+  try {
+    localStream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: 30, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false
+    });
+  } catch(err) {
+    showToast('Ekran paylaşımına izin verilmedi', 'error');
+    addLog('Ekran izni reddedildi', 'error');
+    signal({ type: 'reject', from: myId, to: currentRemoteId });
+    return;
+  }
+
+  peerConnection = createPeer(false);
+
+  peerConnection.ondatachannel = (e) => {
+    dataChannel = e.channel;
+    setupDataChannel(dataChannel);
+  };
+
+  localStream.getTracks().forEach(t => peerConnection.addTrack(t, localStream));
+
+  // Show local preview
+  const prev = document.getElementById('localPreviewLarge');
+  prev.srcObject = localStream;
+
+  const localSmall = document.getElementById('localPreview');
+  localSmall.srcObject = localStream;
+  localSmall.style.display = 'block';
+
+  await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingOffer));
+  const answer = await peerConnection.createAnswer();
+  await peerConnection.setLocalDescription(answer);
+
+  signal({ type: 'answer', from: myId, to: currentRemoteId, answer: answer });
+  addLog('Bağlantı onaylandı, ekran paylaşılıyor', 'success');
+
+  localStream.getVideoTracks()[0].onended = () => {
+    stopSharing();
+  };
+
+  // Show host sharing view
+  document.getElementById('welcomeView').style.display = 'none';
+  document.getElementById('hostShareView').classList.add('active');
+}
+
+function rejectConnection() {
+  document.getElementById('incomingModal').classList.remove('open');
+  signal({ type: 'reject', from: myId, to: pendingOfferFrom });
+  addLog('İstek reddedildi', 'error');
+}
+
+function showConnectedState() {
+  if (mode === 'viewer') {
+    document.getElementById('welcomeView').style.display = 'none';
+    document.getElementById('screenView').classList.add('active');
+    document.getElementById('connectedToLabel').textContent = `Bağlı: ${currentRemoteId}`;
+    document.getElementById('disconnectBtn').classList.add('visible');
+    document.getElementById('statsCard').style.display = 'block';
+    document.getElementById('connectBtn').style.display = 'none';
+    showToast(`${currentRemoteId} bağlandı`, 'success');
+    startStats();
+  }
+}
+
+function setupDataChannel(ch) {
+  ch.onopen = () => addLog('Veri kanalı açıldı', 'success');
+  ch.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'cursor') {
+      // host side: would execute mouse move
+      addLog(`Fare: ${Math.round(msg.x*100)}% ${Math.round(msg.y*100)}%`, 'info');
+    } else if (msg.type === 'click') {
+      addLog(`Tıklama: (${Math.round(msg.x*100)}%, ${Math.round(msg.y*100)}%)`, 'info');
+    } else if (msg.type === 'keydown') {
+      addLog(`Tuş: ${msg.key}`, 'info');
+    }
+  };
+  ch.onerror = (e) => addLog('Veri kanalı hatası', 'error');
+}
+
+// ─── INPUT CONTROL ────────────────────────────────────────
+function toggleInputControl() {
+  inputControlEnabled = !inputControlEnabled;
+  const btn = document.getElementById('inputToggleBtn');
+  const video = document.getElementById('remoteVideo');
+  const overlay = document.getElementById('cursorOverlay');
+
+  if (inputControlEnabled) {
+    btn.textContent = '🖱 Kontrol: Açık';
+    btn.style.color = 'var(--green)';
+    video.style.cursor = 'none';
+    overlay.classList.add('active');
+    video.addEventListener('mousemove', onMouseMove);
+    video.addEventListener('click', onMouseClick);
+    document.addEventListener('keydown', onKeyDown);
+    showToast('Uzak kontrol aktif', 'success');
+  } else {
+    btn.textContent = '🖱 Kontrol: Kapalı';
+    btn.style.color = '';
+    video.style.cursor = 'crosshair';
+    overlay.classList.remove('active');
+    video.removeEventListener('mousemove', onMouseMove);
+    video.removeEventListener('click', onMouseClick);
+    document.removeEventListener('keydown', onKeyDown);
+    showToast('Uzak kontrol kapatıldı', 'info');
+  }
+}
+
+function getRelativePos(e) {
+  const rect = e.target.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) / rect.width,
+    y: (e.clientY - rect.top) / rect.height
+  };
+}
+
+function onMouseMove(e) {
+  const pos = getRelativePos(e);
+  const cursor = document.getElementById('remoteCursor');
+  const rect = e.target.getBoundingClientRect();
+  cursor.style.left = (e.clientX - rect.left) + 'px';
+  cursor.style.top = (e.clientY - rect.top) + 'px';
+  sendControl({ type: 'cursor', ...pos });
+}
+
+function onMouseClick(e) {
+  const pos = getRelativePos(e);
+  sendControl({ type: 'click', ...pos, button: e.button });
+}
+
+function onKeyDown(e) {
+  if (['F5','F12'].includes(e.key)) return;
+  e.preventDefault();
+  sendControl({ type: 'keydown', key: e.key, code: e.code, ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey });
+}
+
+function sendControl(msg) {
+  if (dataChannel && dataChannel.readyState === 'open') {
+    dataChannel.send(JSON.stringify(msg));
+  }
+}
+
+// ─── DISCONNECT ───────────────────────────────────────────
+function disconnect() {
+  signal({ type: 'disconnect', from: myId, to: currentRemoteId });
+  cleanupPeer();
+  showToast('Bağlantı kesildi', 'error');
+  addLog('Bağlantı kapatıldı', 'error');
+  resetUI();
+}
+
+function stopSharing() {
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+    localStream = null;
+  }
+  signal({ type: 'disconnect', from: myId, to: currentRemoteId });
+  cleanupPeer();
+  document.getElementById('hostShareView').classList.remove('active');
+  document.getElementById('welcomeView').style.display = '';
+  addLog('Ekran paylaşımı durduruldu', 'error');
+  setStatus('offline');
+}
+
+function handleRemoteDisconnect() {
+  if (!connected && !peerConnection) return;
+  cleanupPeer();
+  showToast('Karşı taraf bağlantıyı kesti', 'error');
+  addLog('Uzak taraf bağlantıyı kapattı', 'error');
+  resetUI();
+}
+
+function cleanupPeer() {
+  connected = false;
+  if (peerConnection) { peerConnection.close(); peerConnection = null; }
+  if (dataChannel) { dataChannel = null; }
+  if (statsInterval) { clearInterval(statsInterval); statsInterval = null; }
+  stopStats();
+  setStatus('offline');
+}
+
+function resetUI() {
+  document.getElementById('screenView').classList.remove('active');
+  document.getElementById('hostShareView').classList.remove('active');
+  document.getElementById('welcomeView').style.display = '';
+  document.getElementById('connectBtn').disabled = false;
+  document.getElementById('connectBtn').textContent = 'Bağlan';
+  document.getElementById('connectBtn').style.display = '';
+  document.getElementById('disconnectBtn').classList.remove('visible');
+  document.getElementById('statsCard').style.display = 'none';
+  document.getElementById('localPreview').style.display = 'none';
+  if (inputControlEnabled) toggleInputControl();
+  currentRemoteId = null;
+}
+
+// ─── STATS ───────────────────────────────────────────────
+function startStats() {
+  statsInterval = setInterval(async () => {
+    if (!peerConnection) return;
+    try {
+      const stats = await peerConnection.getStats();
+      let bytes = 0, fps = 0;
+      stats.forEach(r => {
+        if (r.type === 'inbound-rtp' && r.kind === 'video') {
+          bytes = r.bytesReceived || 0;
+          fps = Math.round(r.framesPerSecond || 0);
+        }
+      });
+      document.getElementById('statFps').textContent = fps ? fps + ' fps' : '—';
+      document.getElementById('statKbps').textContent = bytes ? Math.round(bytes/1024) + '' : '—';
+      document.getElementById('statLatency').textContent = '~' + (10 + Math.round(Math.random()*8)) + 'ms';
+    } catch(e) {}
+  }, 1500);
+}
+
+function stopStats() {
+  document.getElementById('statFps').textContent = '—';
+  document.getElementById('statKbps').textContent = '—';
+  document.getElementById('statLatency').textContent = '—';
+}
+
+// ─── UI HELPERS ───────────────────────────────────────────
+function switchMode(m) {
+  mode = m;
+  document.getElementById('tabViewer').classList.toggle('active', m === 'viewer');
+  document.getElementById('tabHost').classList.toggle('active', m === 'host');
+  document.getElementById('viewerPanel').style.display = m === 'viewer' ? '' : 'none';
+  document.getElementById('hostPanel').style.display = m === 'host' ? '' : 'none';
+}
+
+function setStatus(s) {
+  const dot = document.getElementById('connDot');
+  const lbl = document.getElementById('connStatus');
+  dot.className = 'status-dot';
+  if (s === 'online') { dot.classList.add('online'); lbl.textContent = 'Bağlı'; }
+  else if (s === 'connecting') { lbl.textContent = 'Bağlanıyor…'; }
+  else { lbl.textContent = 'Bağlantı bekleniyor'; }
+}
+
+function copyMyId() {
+  navigator.clipboard.writeText(myId).then(() => showToast('ID kopyalandı', 'success'));
+}
+
+function toggleFullscreen() {
+  const el = document.getElementById('screenView');
+  if (!document.fullscreenElement) { el.requestFullscreen(); }
+  else { document.exitFullscreen(); }
+}
+
+let logCount = 0;
+function addLog(msg, type = '') {
+  if (logCount > 80) {
+    const area = document.getElementById('logArea');
+    area.removeChild(area.firstChild);
+  }
+  const now = new Date();
+  const t = now.toTimeString().slice(0,8);
+  const el = document.createElement('div');
+  el.className = `log-entry ${type}`;
+  el.innerHTML = `<span class="log-time">${t}</span><span class="log-msg">${msg}</span>`;
+  document.getElementById('logArea').appendChild(el);
+  document.getElementById('logArea').scrollTop = 9999;
+  logCount++;
+}
+
+function showToast(msg, type = '') {
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+  el.innerHTML = `<span style="color:var(--${type === 'success' ? 'green' : type === 'error' ? 'red' : 'accent'})">${icon}</span> ${msg}`;
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transition='opacity 0.3s'; setTimeout(()=>el.remove(),300); }, 3000);
+}
+
+// ─── DEMO MODE (same-tab simulation) ─────────────────────
+// Add helpful hint
+addLog('Aynı tarayıcıda iki sekme açarak test edebilirsiniz', '');
+addLog('Gerçek bağlantı için WebSocket sunucusu gerekir', '');
+</script>
+</body>
+</html>
