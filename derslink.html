@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DersLink — Canlı Ders</title>
+<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0d14;--bg2:#111827;--bg3:#1a2233;--bg4:#1f2d42;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#4b5c74;
+  --blue:#3b82f6;--blue2:#2563eb;
+  --green:#22c55e;--green2:#16a34a;
+  --red:#ef4444;--purple:#a855f7;
+  --r:10px;--rl:14px;
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+
+/* ── SETUP SCREEN ── */
+#setupScreen{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100vh;gap:0;padding:20px;
+}
+.setup-card{
+  background:var(--bg2);border:1px solid var(--border2);border-radius:20px;
+  padding:36px;width:100%;max-width:420px;
+}
+.setup-logo{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:28px}
+.setup-logo-icon{width:40px;height:40px;background:var(--blue);border-radius:10px;display:flex;align-items:center;justify-content:center}
+.setup-logo h1{font-size:22px;font-weight:700;letter-spacing:-.3px}
+.role-tabs{display:flex;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:3px;margin-bottom:24px}
+.role-tab{flex:1;padding:9px;text-align:center;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;border-radius:8px;transition:all .15s}
+.role-tab.active{background:var(--bg4);color:var(--text);border:1px solid var(--border2)}
+.field-label{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+.field{margin-bottom:16px}
+.inp{width:100%;padding:11px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;transition:border .15s}
+.inp:focus{border-color:var(--blue)}
+.inp::placeholder{color:var(--text3)}
+.my-id-box{
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--r);
+  padding:12px 14px;display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;
+}
+.my-id-val{font-family:'SF Mono','Fira Code',monospace;font-size:15px;color:var(--green);letter-spacing:.04em}
+.copy-mini{background:none;border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-size:11px;padding:4px 10px;cursor:pointer;transition:all .15s}
+.copy-mini:hover{background:var(--bg4);color:var(--text)}
+.btn{width:100%;padding:13px;border:none;border-radius:var(--r);font-size:15px;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-blue{background:var(--blue);color:#fff}
+.btn-blue:hover{background:var(--blue2)}
+.btn-blue:active{transform:scale(.98)}
+.btn-blue:disabled{opacity:.4;cursor:not-allowed}
+.setup-hint{font-size:12px;color:var(--text3);text-align:center;margin-top:14px;line-height:1.6}
+.init-loading{font-size:13px;color:var(--text2);text-align:center;padding:10px 0;display:flex;align-items:center;justify-content:center;gap:8px}
+.spinner{width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── SESSION SCREEN ── */
+#sessionScreen{display:none;flex:1;position:relative;overflow:hidden;background:#000}
+
+/* Main video (büyük) */
+#mainVideo{width:100%;height:100%;object-fit:contain;display:block;background:#000}
+
+/* PiP video (küçük — sağ alt) */
+#pipBox{
+  position:absolute;bottom:80px;right:16px;
+  width:200px;height:113px;
+  background:#111;border:2px solid rgba(255,255,255,0.2);border-radius:10px;
+  overflow:hidden;display:none;
+  box-shadow:0 8px 30px rgba(0,0,0,.8);
+  cursor:move;
+  z-index:50;
+}
+#pipVideo{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+#pipLabel{position:absolute;bottom:4px;left:6px;font-size:10px;color:rgba(255,255,255,.7);font-weight:500}
+
+/* Kendi kamera önizlemesi (setup'ta kamera yok, session'da sağ alt) */
+#selfBox{
+  position:absolute;bottom:80px;right:16px;
+  width:200px;height:113px;
+  background:#111;border:2px solid rgba(255,255,255,0.15);border-radius:10px;
+  overflow:hidden;
+  z-index:40;
+}
+#selfVideo{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+#selfLabel{position:absolute;bottom:4px;left:6px;font-size:10px;color:rgba(255,255,255,.6);font-weight:500}
+
+/* Toolbar */
+#toolbar{
+  position:absolute;bottom:0;left:0;right:0;
+  height:64px;
+  background:linear-gradient(transparent,rgba(0,0,0,.85));
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:0 20px;
+  z-index:60;
+  transition:opacity .3s;
+}
+.tb-btn{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:8px 14px;
+  background:rgba(255,255,255,.08);backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.12);border-radius:10px;
+  color:#fff;font-size:10px;font-weight:500;cursor:pointer;
+  transition:all .15s;min-width:56px;
+}
+.tb-btn:hover{background:rgba(255,255,255,.15)}
+.tb-btn.active{background:rgba(239,68,68,.25);border-color:rgba(239,68,68,.5);color:var(--red)}
+.tb-btn.share-active{background:rgba(168,85,247,.25);border-color:rgba(168,85,247,.5);color:var(--purple)}
+.tb-btn svg{width:20px;height:20px}
+.tb-btn-end{background:rgba(239,68,68,.8);border-color:transparent}
+.tb-btn-end:hover{background:var(--red)}
+
+/* Top bar */
+#topBar{
+  position:absolute;top:0;left:0;right:0;
+  height:48px;
+  background:linear-gradient(rgba(0,0,0,.7),transparent);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;
+  z-index:60;
+}
+.top-info{display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.85)}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--red);animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.dur-badge{font-size:12px;color:rgba(255,255,255,.6);font-variant-numeric:tabular-nums;font-family:monospace}
+.quality-badge{font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:var(--green)}
+.role-badge{font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:var(--blue)}
+
+/* Status overlay (bağlantı bekleme) */
+#waitOverlay{
+  position:absolute;inset:0;background:rgba(0,0,0,.85);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  z-index:30;
+}
+.wait-spinner{width:48px;height:48px;border:3px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+.wait-title{font-size:18px;font-weight:600;color:var(--text)}
+.wait-sub{font-size:13px;color:var(--text2)}
+
+/* Bildirim toast */
+#toast{
+  position:absolute;top:56px;left:50%;transform:translateX(-50%);
+  background:rgba(30,40,60,.95);border:1px solid var(--border2);border-radius:8px;
+  padding:9px 18px;font-size:13px;color:var(--text);
+  display:none;z-index:200;white-space:nowrap;
+  box-shadow:0 4px 20px rgba(0,0,0,.5);
+}
+
+/* Ekran paylaşım banner */
+#shareBanner{
+  position:absolute;top:54px;left:50%;transform:translateX(-50%);
+  background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.4);
+  border-radius:20px;padding:6px 18px;font-size:12px;font-weight:600;
+  color:var(--purple);display:none;z-index:100;
+  animation:blink 1.8s infinite;
+}
+
+/* Sessize alma overlay */
+#muteOverlay{
+  position:absolute;bottom:72px;left:50%;transform:translateX(-50%);
+  background:rgba(239,68,68,.9);border-radius:20px;padding:5px 14px;
+  font-size:12px;font-weight:600;color:#fff;display:none;z-index:100;
+}
+
+/* Mobile */
+@media(max-width:600px){
+  .setup-card{padding:24px;border-radius:16px}
+  #pipBox,#selfBox{width:120px;height:68px;bottom:72px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ SETUP SCREEN ═══ -->
+<div id="setupScreen">
+  <div class="setup-card">
+    <div class="setup-logo">
+      <div class="setup-logo-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+          <path d="M15 10l4.553-2.277A1 1 0 0121 8.62v6.76a1 1 0 01-1.447.897L15 14"/>
+          <rect x="3" y="6" width="12" height="12" rx="2"/>
+        </svg>
+      </div>
+      <h1>DersLink</h1>
+    </div>
+
+    <div class="role-tabs">
+      <div class="role-tab active" id="tabTeacher" onclick="setRole('teacher')">👨‍🏫 Öğretmen</div>
+      <div class="role-tab" id="tabStudent" onclick="setRole('student')">👨‍🎓 Öğrenci</div>
+    </div>
+
+    <!-- ID (her zaman göster) -->
+    <div class="field">
+      <div class="field-label">Benim ID'm</div>
+      <div class="my-id-box">
+        <span class="my-id-val" id="myIdDisplay">
+          <span class="init-loading"><span class="spinner"></span> Yükleniyor…</span>
+        </span>
+        <button class="copy-mini" id="copyBtn" onclick="copyId()" style="display:none">Kopyala</button>
+      </div>
+    </div>
+
+    <!-- Öğretmen: öğrenci ID'sini girer -->
+    <div id="connectSection">
+      <div class="field">
+        <div class="field-label" id="remoteLabel">Öğrenci ID</div>
+        <input class="inp" id="remoteIdInput" type="text" placeholder="Karşı tarafın ID'sini girin"/>
+      </div>
+      <button class="btn btn-blue" id="connectBtn" onclick="startConnect()" disabled>
+        Dersi Başlat
+      </button>
+    </div>
+
+    <!-- Öğrenci: sadece bekler -->
+    <div id="waitSection" style="display:none">
+      <div class="setup-hint" style="padding:16px;background:var(--bg);border-radius:var(--r);margin-bottom:0">
+        📋 Yukarıdaki ID'nizi öğretmeninize gönderin.<br/>Öğretmen bağlandığında ders otomatik başlar.
+      </div>
+    </div>
+
+    <div class="setup-hint" id="setupHint">Bağlanmak için her iki tarafın da bu sayfayı açık tutması gerekir.</div>
+  </div>
+</div>
+
+<!-- ═══ SESSION SCREEN ═══ -->
+<div id="sessionScreen">
+
+  <!-- Ana video -->
+  <video id="mainVideo" autoplay playsinline></video>
+
+  <!-- Bekleme overlay -->
+  <div id="waitOverlay">
+    <div class="wait-spinner"></div>
+    <div class="wait-title" id="waitTitle">Bağlantı bekleniyor…</div>
+    <div class="wait-sub" id="waitSub">Karşı taraf bağlanınca ders başlayacak</div>
+  </div>
+
+  <!-- Küçük PiP (karşı taraf) -->
+  <div id="pipBox">
+    <video id="pipVideo" autoplay playsinline></video>
+    <div id="pipLabel">—</div>
+  </div>
+
+  <!-- Kendi kamera (sağ alt, PiP yokken) -->
+  <div id="selfBox">
+    <video id="selfVideo" autoplay muted playsinline></video>
+    <div id="selfLabel">Sen</div>
+  </div>
+
+  <!-- Üst bar -->
+  <div id="topBar">
+    <div class="top-info">
+      <div class="live-dot" id="liveDot" style="opacity:0"></div>
+      <span id="sessionTitle">DersLink</span>
+      <span class="dur-badge" id="durBadge" style="display:none">00:00</span>
+    </div>
+    <div style="display:flex;gap:6px">
+      <span class="role-badge" id="roleBadge">—</span>
+      <span class="quality-badge" id="qualBadge" style="display:none">HD</span>
+    </div>
+  </div>
+
+  <!-- Ekran paylaşım banner -->
+  <div id="shareBanner">📺 Ekran paylaşılıyor</div>
+  <div id="muteOverlay">🔇 Mikrofon kapalı</div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <!-- Alt toolbar -->
+  <div id="toolbar">
+    <!-- Mikrofon -->
+    <button class="tb-btn" id="btnMic" onclick="toggleMic()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+        <path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/>
+      </svg>
+      Mikrofon
+    </button>
+    <!-- Kamera -->
+    <button class="tb-btn" id="btnCam" onclick="toggleCam()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M15 10l4.553-2.277A1 1 0 0121 8.62v6.76a1 1 0 01-1.447.897L15 14"/>
+        <rect x="3" y="6" width="12" height="12" rx="2"/>
+      </svg>
+      Kamera
+    </button>
+    <!-- Ekran paylaş (sadece öğretmende aktif) -->
+    <button class="tb-btn" id="btnShare" onclick="toggleScreenShare()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="3" width="20" height="14" rx="2"/>
+        <path d="M8 21h8M12 17v4"/>
+      </svg>
+      Ekran
+    </button>
+    <!-- Tam ekran -->
+    <button class="tb-btn" id="btnFs" onclick="toggleFullscreen()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M8 3H5a2 2 0 00-2 2v3M21 8V5a2 2 0 00-2-2h-3M8 21H5a2 2 0 01-2-2v-3M21 16v3a2 2 0 01-2 2h-3"/>
+      </svg>
+      Tam Ekran
+    </button>
+    <!-- Bitir -->
+    <button class="tb-btn tb-btn-end" onclick="endSession()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M10.68 13.31a16 16 0 003.41 2.6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7 2 2 0 011.72 2v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.42 19.42 0 013.43 9.13 19.79 19.79 0 01.36 0.5 2 2 0 012.34-2H5.5a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.5 7.5"/>
+      </svg>
+      Bitir
+    </button>
+  </div>
+</div>
+
+<script>
+(function(){
+
+// ── STATE ────────────────────────────────────────────────
+var role = 'teacher'; // 'teacher' | 'student'
+var peer = null;
+var myId = null;
+var localStream = null;
+var currentCall = null;
+var dataConn = null;
+var screenStream = null;
+var isSharing = false;
+var micOn = true;
+var camOn = true;
+var sessionStart = null;
+var durTimer = null;
+var connected = false;
+
+// ── ELEMENTS ─────────────────────────────────────────────
+var $ = function(id){ return document.getElementById(id); };
+var mainVideo    = $('mainVideo');
+var selfVideo    = $('selfVideo');
+var pipVideo     = $('pipVideo');
+var pipBox       = $('pipBox');
+var selfBox      = $('selfBox');
+var waitOverlay  = $('waitOverlay');
+var myIdDisplay  = $('myIdDisplay');
+var connectBtn   = $('connectBtn');
+var shareBanner  = $('shareBanner');
+var muteOverlay  = $('muteOverlay');
+var liveDot      = $('liveDot');
+var durBadge     = $('durBadge');
+var qualBadge    = $('qualBadge');
+
+// ── ROLE SELECT ───────────────────────────────────────────
+function setRole(r) {
+  role = r;
+  $('tabTeacher').classList.toggle('active', r === 'teacher');
+  $('tabStudent').classList.toggle('active', r === 'student');
+  $('connectSection').style.display = r === 'teacher' ? '' : 'none';
+  $('waitSection').style.display    = r === 'student'  ? '' : 'none';
+  $('remoteLabel').textContent = r === 'teacher' ? 'Öğrenci ID' : 'Öğretmen ID';
+  $('roleBadge').textContent = r === 'teacher' ? '👨‍🏫 Öğretmen' : '👨‍🎓 Öğrenci';
+  $('btnShare').style.opacity = r === 'teacher' ? '1' : '0.35';
+  $('btnShare').style.pointerEvents = r === 'teacher' ? '' : 'none';
+}
+window.setRole = setRole;
+
+// ── INIT PEER ─────────────────────────────────────────────
+function initPeer() {
+  peer = new Peer(undefined, { debug: 0 });
+
+  peer.on('open', function(id) {
+    myId = id;
+    myIdDisplay.innerHTML = '<span style="font-family:\'SF Mono\',monospace;font-size:15px;color:var(--green);letter-spacing:.04em">' + id + '</span>';
+    $('copyBtn').style.display = '';
+    connectBtn.disabled = false;
+  });
+
+  peer.on('call', function(call) {
+    // Gelen çağrıyı yanıtla (öğrenci veya öğretmen olabilir)
+    call.answer(localStream);
+    setupCall(call, false);
+    showToast('✅ Bağlantı kuruldu');
+  });
+
+  peer.on('connection', function(conn) {
+    dataConn = conn;
+    setupDataConn(conn);
+  });
+
+  peer.on('error', function(err) {
+    showToast('❌ Hata: ' + err.type);
+  });
+}
+
+// ── CAMERA INIT ──────────────────────────────────────────
+navigator.mediaDevices.getUserMedia({
+  video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+  audio: { echoCancellation: true, noiseSuppression: true }
+}).then(function(stream) {
+  localStream = stream;
+  selfVideo.srcObject = stream;
+  initPeer();
+}).catch(function(err) {
+  // Kamerasız da çalışabilsin
+  localStream = new MediaStream();
+  initPeer();
+  showToast('⚠️ Kamera/mikrofon erişimi yok');
+});
+
+// ── CONNECT ───────────────────────────────────────────────
+function startConnect() {
+  var remoteId = $('remoteIdInput').value.trim();
+  if (!remoteId) { showToast('⚠️ Karşı tarafın ID\'sini girin'); return; }
+  if (remoteId === myId) { showToast('⚠️ Kendi ID\'nize bağlanamazsınız'); return; }
+  if (!localStream) { showToast('⚠️ Kamera yükleniyor...'); return; }
+
+  connectBtn.disabled = true;
+  connectBtn.textContent = 'Bağlanıyor…';
+
+  // Data bağlantısı aç (kontrol mesajları için)
+  var conn = peer.connect(remoteId, { reliable: true });
+  conn.on('open', function() {
+    dataConn = conn;
+    setupDataConn(conn);
+  });
+
+  // Medya çağrısı başlat
+  var call = peer.call(remoteId, localStream);
+  if (!call) {
+    showToast('❌ Bağlantı kurulamadı');
+    connectBtn.disabled = false;
+    connectBtn.textContent = 'Dersi Başlat';
+    return;
+  }
+  setupCall(call, true);
+}
+window.startConnect = startConnect;
+
+// ── SETUP CALL ────────────────────────────────────────────
+function setupCall(call, isInitiator) {
+  currentCall = call;
+
+  // Setup ekrana geç
+  $('setupScreen').style.display = 'none';
+  $('sessionScreen').style.display = 'flex';
+  waitOverlay.style.display = 'flex';
+  $('waitTitle').textContent = isInitiator ? 'Bağlanıyor…' : 'Bağlantı kuruldu!';
+  $('waitSub').textContent   = isInitiator ? 'Karşı taraf yanıt verince ders başlayacak' : 'Kamera akışı yükleniyor…';
+  $('roleBadge').textContent  = role === 'teacher' ? '👨‍🏫 Öğretmen' : '👨‍🎓 Öğrenci';
+  $('btnShare').style.opacity       = role === 'teacher' ? '1' : '0.35';
+  $('btnShare').style.pointerEvents = role === 'teacher' ? '' : 'none';
+
+  // Kendi kamera önizlemesi
+  selfVideo.srcObject = localStream;
+  selfBox.style.display = 'block';
+
+  call.on('stream', function(remoteStream) {
+    connected = true;
+    waitOverlay.style.display = 'none';
+    pipBox.style.display = 'block';
+    liveDot.style.opacity = '1';
+    durBadge.style.display = '';
+    qualBadge.style.display = '';
+
+    // Öğretmen: ana video = karşı taraf, pip = kendisi
+    // Öğrenci:  ana video = karşı taraf, pip = kendisi
+    mainVideo.srcObject = remoteStream;
+    pipVideo.srcObject  = localStream;
+    // selfBox artık gerekmez, pip'e taşındı
+    selfBox.style.display = 'none';
+    $('pipLabel').textContent = role === 'teacher' ? 'Öğrenci' : 'Öğretmen';
+
+    startDuration();
+    showToast('✅ Ders başladı!');
+
+    // Bağlantı bilgisi
+    try {
+      var pc = call.peerConnection;
+      pc.getStats().then(function(stats) {
+        stats.forEach(function(r) {
+          if (r.type === 'inbound-rtp' && r.kind === 'video') {
+            var h = r.frameHeight;
+            qualBadge.textContent = h >= 720 ? 'HD' : h >= 480 ? 'SD' : 'LD';
+          }
+        });
+      });
+    } catch(e) {}
+  });
+
+  call.on('close', function() {
+    handleDisconnect('Karşı taraf bağlantıyı kesti');
+  });
+
+  call.on('error', function(err) {
+    showToast('❌ Bağlantı hatası: ' + err.message);
+    handleDisconnect('Bağlantı hatası');
+  });
+}
+
+// ── DATA CHANNEL ─────────────────────────────────────────
+function setupDataConn(conn) {
+  conn.on('data', function(msg) {
+    if (msg.type === 'screenShareOn') {
+      shareBanner.style.display = 'block';
+      shareBanner.textContent = '📺 Öğretmen ekran paylaşıyor';
+      showToast('📺 Ekran paylaşımı başladı');
+    } else if (msg.type === 'screenShareOff') {
+      shareBanner.style.display = 'none';
+    } else if (msg.type === 'micOff') {
+      showToast('🔇 Öğretmen mikrofonu kapattı');
+    } else if (msg.type === 'camOff') {
+      showToast('📷 Öğretmen kamerasını kapattı');
+    } else if (msg.type === 'chat') {
+      showToast('💬 ' + msg.text, 4000);
+    }
+  });
+  conn.on('error', function() {});
+}
+
+function sendData(msg) {
+  if (dataConn && dataConn.open) {
+    try { dataConn.send(msg); } catch(e) {}
+  }
+}
+
+// ── SCREEN SHARE ─────────────────────────────────────────
+function toggleScreenShare() {
+  if (role !== 'teacher') return;
+  if (!currentCall) { showToast('⚠️ Önce bağlanın'); return; }
+
+  if (!isSharing) {
+    navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30, width: 1920 }, audio: false })
+      .then(function(stream) {
+        screenStream = stream;
+        isSharing = true;
+
+        var track = stream.getVideoTracks()[0];
+        var senders = currentCall.peerConnection.getSenders();
+        var vs = senders.find(function(s){ return s.track && s.track.kind === 'video'; });
+        if (vs) vs.replaceTrack(track);
+
+        // Paylaşan kişi kendi ekranını mainVideo'da görsün
+        mainVideo.srcObject = stream;
+        pipVideo.srcObject  = localStream;
+
+        $('btnShare').classList.add('share-active');
+        $('btnShare').querySelector('svg').style.stroke = 'var(--purple)';
+        shareBanner.style.display = 'block';
+        shareBanner.textContent = '📤 Ekranınız paylaşılıyor';
+        sendData({ type: 'screenShareOn' });
+        showToast('📺 Ekran paylaşımı başladı');
+
+        track.onended = function() { stopScreenShare(); };
+      })
+      .catch(function() { showToast('Ekran paylaşımı iptal edildi'); });
+  } else {
+    stopScreenShare();
+  }
+}
+window.toggleScreenShare = toggleScreenShare;
+
+function stopScreenShare() {
+  if (!isSharing) return;
+  isSharing = false;
+
+  if (screenStream) {
+    screenStream.getTracks().forEach(function(t){ t.stop(); });
+    screenStream = null;
+  }
+
+  // Kamera trackini geri yükle
+  if (localStream && currentCall) {
+    var ct = localStream.getVideoTracks()[0];
+    if (ct) {
+      var senders = currentCall.peerConnection.getSenders();
+      var vs = senders.find(function(s){ return s.track && s.track.kind === 'video'; });
+      if (vs) vs.replaceTrack(ct);
+    }
+  }
+
+  // Video'yu kameraya geri al
+  if (currentCall) mainVideo.srcObject = currentCall._remoteStream || mainVideo.srcObject;
+
+  $('btnShare').classList.remove('share-active');
+  shareBanner.style.display = 'none';
+  sendData({ type: 'screenShareOff' });
+  showToast('Ekran paylaşımı durduruldu');
+}
+
+// ── MIC / CAM TOGGLE ────────────────────────────────────
+function toggleMic() {
+  if (!localStream) return;
+  micOn = !micOn;
+  localStream.getAudioTracks().forEach(function(t){ t.enabled = micOn; });
+  $('btnMic').classList.toggle('active', !micOn);
+  muteOverlay.style.display = micOn ? 'none' : 'block';
+  if (!micOn) sendData({ type: 'micOff' });
+  showToast(micOn ? '🎙 Mikrofon açık' : '🔇 Mikrofon kapalı');
+}
+window.toggleMic = toggleMic;
+
+function toggleCam() {
+  if (!localStream) return;
+  camOn = !camOn;
+  localStream.getVideoTracks().forEach(function(t){ t.enabled = camOn; });
+  $('btnCam').classList.toggle('active', !camOn);
+  if (!camOn) sendData({ type: 'camOff' });
+  showToast(camOn ? '📷 Kamera açık' : '📷 Kamera kapalı');
+}
+window.toggleCam = toggleCam;
+
+// ── FULLSCREEN ────────────────────────────────────────────
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(function(){});
+  } else {
+    document.exitFullscreen();
+  }
+}
+window.toggleFullscreen = toggleFullscreen;
+
+// ── END SESSION ───────────────────────────────────────────
+function endSession() {
+  if (!confirm('Dersi bitirmek istiyor musunuz?')) return;
+  stopScreenShare();
+  if (currentCall) { try { currentCall.close(); } catch(e){} }
+  if (dataConn)    { try { dataConn.close();    } catch(e){} }
+  handleDisconnect('Ders sona erdi');
+}
+window.endSession = endSession;
+
+function handleDisconnect(reason) {
+  connected = false;
+  stopScreenShare();
+  if (durTimer) { clearInterval(durTimer); durTimer = null; }
+
+  // Setup ekrana dön
+  $('sessionScreen').style.display = 'none';
+  $('setupScreen').style.display = 'flex';
+  connectBtn.disabled = false;
+  connectBtn.textContent = 'Dersi Başlat';
+  currentCall = null;
+  dataConn = null;
+  showToast(reason || 'Bağlantı kesildi');
+}
+
+// ── DURATION TIMER ────────────────────────────────────────
+function startDuration() {
+  sessionStart = Date.now();
+  durTimer = setInterval(function() {
+    var sec = Math.floor((Date.now() - sessionStart) / 1000);
+    var m = Math.floor(sec / 60);
+    var s = sec % 60;
+    durBadge.textContent = pad(m) + ':' + pad(s);
+  }, 1000);
+}
+function pad(n){ return n < 10 ? '0'+n : ''+n; }
+
+// ── PiP DRAG ─────────────────────────────────────────────
+(function() {
+  var el = pipBox;
+  var dragging = false, ox, oy, ex, ey;
+  el.addEventListener('mousedown', function(e) {
+    dragging = true;
+    ox = e.clientX - el.offsetLeft;
+    oy = e.clientY - el.offsetTop;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', function(e) {
+    if (!dragging) return;
+    el.style.left   = (e.clientX - ox) + 'px';
+    el.style.top    = (e.clientY - oy) + 'px';
+    el.style.right  = 'auto';
+    el.style.bottom = 'auto';
+  });
+  document.addEventListener('mouseup', function() { dragging = false; });
+
+  // Touch
+  el.addEventListener('touchstart', function(e) {
+    var t = e.touches[0];
+    dragging = true;
+    ox = t.clientX - el.offsetLeft;
+    oy = t.clientY - el.offsetTop;
+  });
+  document.addEventListener('touchmove', function(e) {
+    if (!dragging) return;
+    var t = e.touches[0];
+    el.style.left   = (t.clientX - ox) + 'px';
+    el.style.top    = (t.clientY - oy) + 'px';
+    el.style.right  = 'auto';
+    el.style.bottom = 'auto';
+  });
+  document.addEventListener('touchend', function() { dragging = false; });
+})();
+
+// ── COPY ID ──────────────────────────────────────────────
+function copyId() {
+  if (!myId) return;
+  navigator.clipboard.writeText(myId).then(function() { showToast('✅ ID kopyalandı'); });
+}
+window.copyId = copyId;
+
+// ── TOAST ────────────────────────────────────────────────
+var toastTimer = null;
+function showToast(msg, dur) {
+  var t = $('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  t.style.opacity = '1';
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() {
+    t.style.opacity = '0';
+    t.style.transition = 'opacity .4s';
+    setTimeout(function(){ t.style.display = 'none'; t.style.transition = ''; }, 400);
+  }, dur || 3000);
+}
+
+// ── REMOTE STREAM FIX ─────────────────────────────────────
+// Store remote stream on call object for screen share restore
+var _origSetupCall = setupCall;
+
+// ── INIT ─────────────────────────────────────────────────
+setRole('teacher');
+$('roleBadge').textContent = '👨‍🏫 Öğretmen';
+
+})();
+</script>
+</body>
+</html>
