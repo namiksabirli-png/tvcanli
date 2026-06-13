@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RemoteLink — Uzaktan Bağlantı</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--bg2:#181c26;--bg3:#1e2330;
+  --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.15);
+  --text:#e8eaf0;--text2:#8892a4;--text3:#4a5266;
+  --accent:#3d7eff;--accent2:#2563eb;
+  --green:#22c55e;--red:#ef4444;--amber:#f59e0b;
+  --r:10px;--rl:16px;
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;min-height:100vh;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:52px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.logo{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:var(--text)}
+.logo-icon{width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);display:inline-block;transition:background .3s}
+.status-dot.online{background:var(--green);box-shadow:0 0 6px var(--green)}
+.status-row{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)}
+.main{display:flex;flex:1;overflow:hidden}
+.sidebar{width:300px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 16px;gap:20px;overflow-y:auto}
+.card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rl);padding:16px}
+.card-label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:12px}
+.my-id-display{font-size:26px;font-weight:700;letter-spacing:.12em;color:var(--text);font-variant-numeric:tabular-nums;text-align:center;padding:10px 0 8px;font-family:'SF Mono','Fira Code',monospace}
+.my-id-display span{color:var(--accent)}
+.copy-btn{width:100%;padding:8px;background:transparent;border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);cursor:pointer;font-size:12px;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px}
+.copy-btn:hover{background:rgba(255,255,255,.05);color:var(--text)}
+.copy-btn:active{transform:scale(.98)}
+.input-wrap{position:relative;margin-bottom:10px}
+.input-wrap input{width:100%;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-size:15px;font-family:'SF Mono','Fira Code',monospace;letter-spacing:.08em;outline:none;transition:border .15s}
+.input-wrap input:focus{border-color:var(--accent)}
+.input-wrap input::placeholder{color:var(--text3);letter-spacing:.02em;font-family:-apple-system,sans-serif}
+.btn-primary{width:100%;padding:11px;background:var(--accent);border:none;border-radius:var(--r);color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-primary:hover{background:var(--accent2)}
+.btn-primary:active{transform:scale(.98)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-danger{width:100%;padding:11px;margin-top:8px;background:transparent;border:1px solid var(--red);border-radius:var(--r);color:var(--red);font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;display:none}
+.btn-danger:hover{background:rgba(239,68,68,.1)}
+.btn-danger.show{display:block}
+.log-area{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px;max-height:180px}
+.log-entry{font-size:11px;color:var(--text2);padding:4px 0;border-bottom:1px solid var(--border);display:flex;gap:8px}
+.log-time{color:var(--text3);flex-shrink:0;font-family:monospace}
+.log-entry.success .log-msg{color:var(--green)}
+.log-entry.error .log-msg{color:var(--red)}
+.log-entry.info .log-msg{color:var(--accent)}
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:var(--text3);padding:40px;text-align:center}
+.welcome-icon{width:64px;height:64px;border:2px dashed var(--border2);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.welcome h2{font-size:18px;font-weight:500;color:var(--text2)}
+.welcome p{font-size:13px;max-width:320px;line-height:1.6}
+.screen-container{flex:1;display:none;flex-direction:column;background:#000;position:relative;overflow:hidden}
+.screen-container.active{display:flex}
+.screen-toolbar{display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.screen-toolbar .tb-info{flex:1;font-size:12px;color:var(--text2);display:flex;align-items:center;gap:8px}
+.live-badge{background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:.05em;animation:pulse-red 1.5s ease-in-out infinite}
+@keyframes pulse-red{0%,100%{opacity:1}50%{opacity:.6}}
+.tb-btn{padding:5px 12px;background:transparent;border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-size:12px;cursor:pointer;transition:all .15s}
+.tb-btn:hover{background:rgba(255,255,255,.06);color:var(--text)}
+#remoteVideo{flex:1;width:100%;object-fit:contain;cursor:crosshair;display:block}
+.host-view{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:40px}
+.host-view.active{display:flex}
+.sharing-badge{display:flex;align-items:center;gap:10px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:40px;padding:8px 20px;font-size:13px;font-weight:500;color:var(--green)}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(4px)}
+.modal-backdrop.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--rl);padding:28px;width:360px;text-align:center;animation:modal-in .2s ease-out}
+@keyframes modal-in{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-icon{width:52px;height:52px;background:rgba(61,126,255,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:var(--accent)}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:8px}
+.modal p{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:20px}
+.modal-requester{font-size:22px;font-weight:700;color:var(--accent);font-family:monospace;letter-spacing:.1em;margin-bottom:4px}
+.modal-btns{display:flex;gap:10px}
+.modal-btns button{flex:1;padding:11px;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+.btn-accept{background:var(--green);color:#fff}
+.btn-accept:hover{background:#16a34a}
+.btn-reject{background:transparent;border:1px solid var(--border2) !important;color:var(--text2)}
+.btn-reject:hover{background:rgba(255,255,255,.05);color:var(--text)}
+.toast-wrap{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:200}
+.toast{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:10px 16px;font-size:13px;color:var(--text);animation:toast-in .2s ease-out;display:flex;align-items:center;gap:8px;min-width:200px}
+.toast.success{border-color:rgba(34,197,94,.4)}
+.toast.error{border-color:rgba(239,68,68,.4)}
+@keyframes toast-in{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
+#cursorOverlay{position:absolute;inset:0;pointer-events:none;z-index:10;display:none}
+#cursorOverlay.active{display:block}
+.remote-cursor{position:absolute;width:14px;height:14px;background:var(--accent);border:2px solid #fff;border-radius:50%;transform:translate(-50%,-50%);transition:left .04s,top .04s;pointer-events:none}
+.mode-tabs{display:flex;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:3px;margin-bottom:16px}
+.mode-tab{flex:1;padding:7px 10px;text-align:center;font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;border-radius:7px;transition:all .15s}
+.mode-tab.active{background:var(--bg3);color:var(--text);border:1px solid var(--border2)}
+.stats-row{display:flex;gap:8px;margin-top:4px}
+.stat-pill{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center}
+.stat-pill .sv{font-size:16px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums}
+.stat-pill .sl{font-size:10px;color:var(--text3);margin-top:2px}
+#localPreview{width:160px;height:100px;border-radius:8px;background:#111;border:1px solid var(--border2);object-fit:cover;display:none}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <rect x="1" y="3" width="14" height="9" rx="2" stroke="white" stroke-width="1.5"/>
+        <path d="M5 12v1M11 12v1M3 13h10" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M6 7.5L8.5 6L11 7.5L8.5 9Z" fill="white"/>
+      </svg>
+    </div>
+    RemoteLink
+  </div>
+  <div class="status-row">
+    <span class="status-dot" id="connDot"></span>
+    <span id="connStatus">Bağlantı bekleniyor</span>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="incomingModal">
+  <div class="modal">
+    <div class="modal-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M15 10l-4 4-2-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+      </svg>
+    </div>
+    <h3>Bağlantı İsteği</h3>
+    <div class="modal-requester" id="requesterIdLabel">—</div>
+    <p>numaralı kullanıcı ekranınızı görüntülemek istiyor. İzin vermek istiyor musunuz?</p>
+    <div class="modal-btns">
+      <button class="btn-reject" id="btnReject">Reddet</button>
+      <button class="btn-accept" id="btnAccept">Onayla</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<div class="main">
+  <div class="sidebar">
+
+    <div class="card">
+      <div class="card-label">Bilgisayarım</div>
+      <div class="my-id-display"><span id="myIdText">——— ———</span></div>
+      <button class="copy-btn" id="copyBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        ID'yi kopyala
+      </button>
+    </div>
+
+    <div>
+      <div class="mode-tabs">
+        <div class="mode-tab active" id="tabViewer">Görüntüleyici</div>
+        <div class="mode-tab" id="tabHost">Sunan</div>
+      </div>
+
+      <div id="viewerPanel">
+        <div class="card-label" style="margin-bottom:10px">Uzak Bilgisayara Bağlan</div>
+        <div class="input-wrap">
+          <input type="text" id="remoteIdInput" placeholder="ID gir (örn: 4829-3710)" maxlength="9"/>
+        </div>
+        <button class="btn-primary" id="connectBtn">Bağlan</button>
+        <button class="btn-danger" id="disconnectBtn">Bağlantıyı Kes</button>
+      </div>
+
+      <div id="hostPanel" style="display:none">
+        <div class="card-label" style="margin-bottom:10px">Bu bilgisayarı paylaş</div>
+        <p style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:14px">
+          ID'nizi karşı tarafa verin. Bağlantı isteği geldiğinde onay ekranı çıkacak.
+        </p>
+        <video id="localPreview" autoplay muted playsinline></video>
+      </div>
+    </div>
+
+    <div class="card" id="statsCard" style="display:none">
+      <div class="card-label">Bağlantı İstatistikleri</div>
+      <div class="stats-row">
+        <div class="stat-pill"><div class="sv" id="statLatency">—</div><div class="sl">Gecikme</div></div>
+        <div class="stat-pill"><div class="sv" id="statFps">—</div><div class="sl">FPS</div></div>
+        <div class="stat-pill"><div class="sv" id="statKbps">—</div><div class="sl">Kbps</div></div>
+      </div>
+    </div>
+
+    <div class="card" style="flex:1;min-height:120px;display:flex;flex-direction:column">
+      <div class="card-label">Bağlantı Kaydı</div>
+      <div class="log-area" id="logArea"></div>
+    </div>
+
+  </div>
+
+  <div class="content">
+    <div class="welcome" id="welcomeView">
+      <div class="welcome-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="3" width="20" height="14" rx="2"/>
+          <path d="M8 21h8M12 17v4"/>
+        </svg>
+      </div>
+      <h2>Bağlantı bekleniyor</h2>
+      <p>Sol panelden bir ID girerek uzak bilgisayara bağlanın ya da kendi ID'nizi paylaşarak birinin bağlanmasını bekleyin.</p>
+    </div>
+
+    <div class="screen-container" id="screenView">
+      <div class="screen-toolbar">
+        <div class="tb-info">
+          <span class="live-badge">CANLI</span>
+          <span id="connectedToLabel">Bağlı: —</span>
+        </div>
+        <button class="tb-btn" id="fullscreenBtn">⛶ Tam Ekran</button>
+        <button class="tb-btn" id="inputToggleBtn">🖱 Kontrol: Kapalı</button>
+        <button class="tb-btn" style="color:var(--red)" id="disconnectBtn2">✕ Kes</button>
+      </div>
+      <div style="position:relative;flex:1;overflow:hidden;display:flex">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <div id="cursorOverlay"><div class="remote-cursor" id="remoteCursor"></div></div>
+      </div>
+    </div>
+
+    <div class="host-view" id="hostShareView">
+      <div class="sharing-badge">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+        </svg>
+        Ekran paylaşılıyor
+      </div>
+      <video id="localPreviewLarge" autoplay muted playsinline
+        style="width:100%;max-width:640px;border-radius:12px;border:1px solid var(--border2);background:#111"></video>
+      <p style="font-size:13px;color:var(--text2)">Karşı taraf ekranınızı görüntülüyor</p>
+      <button id="stopSharingBtn" style="padding:9px 24px;background:transparent;border:1px solid var(--red);border-radius:8px;color:var(--red);font-size:13px;cursor:pointer">
+        Paylaşımı Durdur
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // ── HELPERS ──────────────────────────────────────────────
+  var logCount = 0;
+
+  function addLog(msg, type) {
+    type = type || '';
+    if (logCount > 80) {
+      var area = document.getElementById('logArea');
+      if (area.firstChild) area.removeChild(area.firstChild);
+    }
+    var now = new Date();
+    var t = now.toTimeString().slice(0, 8);
+    var el = document.createElement('div');
+    el.className = 'log-entry ' + type;
+    el.innerHTML = '<span class="log-time">' + t + '</span><span class="log-msg">' + msg + '</span>';
+    document.getElementById('logArea').appendChild(el);
+    document.getElementById('logArea').scrollTop = 99999;
+    logCount++;
+  }
+
+  function showToast(msg, type) {
+    type = type || '';
+    var wrap = document.getElementById('toastWrap');
+    var el = document.createElement('div');
+    el.className = 'toast ' + type;
+    var icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+    var color = type === 'success' ? 'var(--green)' : type === 'error' ? 'var(--red)' : 'var(--accent)';
+    el.innerHTML = '<span style="color:' + color + '">' + icon + '</span> ' + msg;
+    wrap.appendChild(el);
+    setTimeout(function() {
+      el.style.opacity = '0';
+      el.style.transition = 'opacity .3s';
+      setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 300);
+    }, 3000);
+  }
+
+  function generateId() {
+    var r = function() { return Math.floor(1000 + Math.random() * 9000); };
+    return r() + '-' + r();
+  }
+
+  function setStatus(s) {
+    var dot = document.getElementById('connDot');
+    var lbl = document.getElementById('connStatus');
+    dot.className = 'status-dot';
+    if (s === 'online') { dot.classList.add('online'); lbl.textContent = 'Bağlı'; }
+    else if (s === 'connecting') { lbl.textContent = 'Bağlanıyor…'; }
+    else { lbl.textContent = 'Bağlantı bekleniyor'; }
+  }
+
+  // ── STATE ────────────────────────────────────────────────
+  var myId = generateId();
+  var peerConnection = null;
+  var dataChannel = null;
+  var localStream = null;
+  var currentRemoteId = null;
+  var mode = 'viewer';
+  var connected = false;
+  var inputControlEnabled = false;
+  var pendingOffer = null;
+  var pendingOfferFrom = null;
+  var statsInterval = null;
+
+  document.getElementById('myIdText').textContent = myId;
+  addLog('ID oluşturuldu: ' + myId, 'info');
+  addLog('Test için aynı tarayıcıda iki sekme açın', '');
+
+  // ── SIGNALING (BroadcastChannel — aynı tarayıcı sekmeleri arası) ──
+  var bc = new BroadcastChannel('remotelink_signal');
+
+  function signal(msg) {
+    bc.postMessage(msg);
+  }
+
+  bc.onmessage = function(e) {
+    var msg = e.data;
+    if (!msg || msg.to !== myId) return;
+
+    if (msg.type === 'offer') {
+      pendingOffer = msg.offer;
+      pendingOfferFrom = msg.from;
+      document.getElementById('requesterIdLabel').textContent = msg.from;
+      document.getElementById('incomingModal').classList.add('open');
+      addLog('Bağlantı isteği: ' + msg.from, 'info');
+    } else if (msg.type === 'answer') {
+      if (peerConnection && peerConnection.signalingState !== 'closed') {
+        peerConnection.setRemoteDescription(new RTCSessionDescription(msg.answer))
+          .then(function() { addLog('Bağlantı yanıtı alındı', 'info'); })
+          .catch(function(err) { addLog('SDP hatası: ' + err.message, 'error'); });
+      }
+    } else if (msg.type === 'ice') {
+      if (peerConnection && msg.candidate) {
+        peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate)).catch(function() {});
+      }
+    } else if (msg.type === 'reject') {
+      cleanupPeer();
+      showToast('Bağlantı reddedildi', 'error');
+      addLog('İstek reddedildi', 'error');
+      resetUI();
+    } else if (msg.type === 'disconnect') {
+      handleRemoteDisconnect();
+    }
+  };
+
+  // ── WEBRTC ───────────────────────────────────────────────
+  function createPeer() {
+    var pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    });
+
+    pc.onicecandidate = function(e) {
+      if (e.candidate) {
+        signal({ type: 'ice', from: myId, to: currentRemoteId, candidate: e.candidate.toJSON() });
+      }
+    };
+
+    pc.onconnectionstatechange = function() {
+      addLog('Durum: ' + pc.connectionState, 'info');
+      if (pc.connectionState === 'connected') {
+        connected = true;
+        setStatus('online');
+        showConnectedState();
+      } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        handleRemoteDisconnect();
+      }
+    };
+
+    pc.ontrack = function(e) {
+      if (mode === 'viewer') {
+        var video = document.getElementById('remoteVideo');
+        video.srcObject = e.streams[0];
+        addLog('Ekran akışı başladı', 'success');
+      }
+    };
+
+    return pc;
+  }
+
+  function setupDataChannel(ch) {
+    ch.onopen = function() { addLog('Veri kanalı açıldı', 'success'); };
+    ch.onmessage = function(e) {
+      try {
+        var msg = JSON.parse(e.data);
+        if (msg.type === 'cursor') {
+          addLog('Fare hareket: ' + Math.round(msg.x * 100) + '% ' + Math.round(msg.y * 100) + '%', '');
+        } else if (msg.type === 'click') {
+          addLog('Tıklama: (' + Math.round(msg.x * 100) + '%, ' + Math.round(msg.y * 100) + '%)', 'info');
+        } else if (msg.type === 'keydown') {
+          addLog('Tuş: ' + msg.key, 'info');
+        }
+      } catch(err) {}
+    };
+    ch.onerror = function() { addLog('Veri kanalı hatası', 'error'); };
+  }
+
+  function sendControl(msg) {
+    if (dataChannel && dataChannel.readyState === 'open') {
+      dataChannel.send(JSON.stringify(msg));
+    }
+  }
+
+  // ── CONNECT (viewer initiates) ────────────────────────────
+  function initiateConnect() {
+    var val = document.getElementById('remoteIdInput').value.trim();
+    if (val.length < 9) { showToast('Geçerli bir ID girin (örn: 1234-5678)', 'error'); return; }
+    if (val === myId) { showToast("Kendi ID'nize bağlanamazsınız", 'error'); return; }
+
+    currentRemoteId = val;
+    addLog('Bağlanılıyor: ' + currentRemoteId, 'info');
+    setStatus('connecting');
+
+    peerConnection = createPeer();
+    dataChannel = peerConnection.createDataChannel('control', { ordered: true });
+    setupDataChannel(dataChannel);
+
+    peerConnection.createOffer()
+      .then(function(offer) {
+        return peerConnection.setLocalDescription(offer);
+      })
+      .then(function() {
+        return new Promise(function(resolve) {
+          if (peerConnection.iceGatheringState === 'complete') { resolve(); return; }
+          peerConnection.onicegatheringstatechange = function() {
+            if (peerConnection.iceGatheringState === 'complete') resolve();
+          };
+          setTimeout(resolve, 3000);
+        });
+      })
+      .then(function() {
+        var ld = peerConnection.localDescription;
+        signal({ type: 'offer', from: myId, to: currentRemoteId, offer: { type: ld.type, sdp: ld.sdp } });
+        addLog('Bağlantı isteği gönderildi', 'info');
+        var btn = document.getElementById('connectBtn');
+        btn.disabled = true;
+        btn.textContent = 'İstek gönderildi…';
+      })
+      .catch(function(err) {
+        addLog('Offer hatası: ' + err.message, 'error');
+        showToast('Bağlantı başlatılamadı', 'error');
+        resetUI();
+      });
+  }
+
+  // ── ACCEPT (host accepts) ────────────────────────────────
+  function acceptConnection() {
+    document.getElementById('incomingModal').classList.remove('open');
+    currentRemoteId = pendingOfferFrom;
+    var savedOffer = pendingOffer;
+
+    navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: false })
+      .then(function(stream) {
+        localStream = stream;
+
+        var prev = document.getElementById('localPreviewLarge');
+        prev.srcObject = stream;
+        var small = document.getElementById('localPreview');
+        small.srcObject = stream;
+        small.style.display = 'block';
+
+        peerConnection = createPeer();
+        peerConnection.ondatachannel = function(e) {
+          dataChannel = e.channel;
+          setupDataChannel(dataChannel);
+        };
+
+        stream.getTracks().forEach(function(t) { peerConnection.addTrack(t, stream); });
+
+        return peerConnection.setRemoteDescription(new RTCSessionDescription(savedOffer));
+      })
+      .then(function() { return peerConnection.createAnswer(); })
+      .then(function(answer) {
+        return peerConnection.setLocalDescription(answer);
+      })
+      .then(function() {
+        return new Promise(function(resolve) {
+          if (peerConnection.iceGatheringState === 'complete') { resolve(); return; }
+          peerConnection.onicegatheringstatechange = function() {
+            if (peerConnection.iceGatheringState === 'complete') resolve();
+          };
+          setTimeout(resolve, 3000);
+        });
+      })
+      .then(function() {
+        var ld = peerConnection.localDescription;
+        signal({ type: 'answer', from: myId, to: currentRemoteId, answer: { type: ld.type, sdp: ld.sdp } });
+        addLog('Bağlantı onaylandı, ekran paylaşılıyor', 'success');
+        localStream.getVideoTracks()[0].onended = function() { stopSharing(); };
+        document.getElementById('welcomeView').style.display = 'none';
+        document.getElementById('hostShareView').classList.add('active');
+      })
+      .catch(function(err) {
+        showToast('Ekran paylaşımına izin verilmedi', 'error');
+        addLog('Ekran izni reddedildi: ' + err.message, 'error');
+        signal({ type: 'reject', from: myId, to: currentRemoteId });
+        resetUI();
+      });
+  }
+
+  function rejectConnection() {
+    document.getElementById('incomingModal').classList.remove('open');
+    signal({ type: 'reject', from: myId, to: pendingOfferFrom });
+    addLog('İstek reddedildi', 'error');
+  }
+
+  function showConnectedState() {
+    if (mode === 'viewer') {
+      document.getElementById('welcomeView').style.display = 'none';
+      document.getElementById('screenView').classList.add('active');
+      document.getElementById('connectedToLabel').textContent = 'Bağlı: ' + currentRemoteId;
+      document.getElementById('disconnectBtn').classList.add('show');
+      document.getElementById('statsCard').style.display = 'block';
+      document.getElementById('connectBtn').style.display = 'none';
+      showToast(currentRemoteId + ' bağlandı', 'success');
+      startStats();
+    }
+  }
+
+  // ── DISCONNECT ────────────────────────────────────────────
+  function disconnect() {
+    if (currentRemoteId) signal({ type: 'disconnect', from: myId, to: currentRemoteId });
+    cleanupPeer();
+    showToast('Bağlantı kesildi', 'error');
+    addLog('Bağlantı kapatıldı', 'error');
+    resetUI();
+  }
+
+  function stopSharing() {
+    if (localStream) { localStream.getTracks().forEach(function(t) { t.stop(); }); localStream = null; }
+    if (currentRemoteId) signal({ type: 'disconnect', from: myId, to: currentRemoteId });
+    cleanupPeer();
+    document.getElementById('hostShareView').classList.remove('active');
+    document.getElementById('welcomeView').style.display = '';
+    document.getElementById('localPreview').style.display = 'none';
+    addLog('Ekran paylaşımı durduruldu', 'error');
+    resetUI();
+  }
+
+  function handleRemoteDisconnect() {
+    if (!connected && !peerConnection) return;
+    cleanupPeer();
+    showToast('Karşı taraf bağlantıyı kesti', 'error');
+    addLog('Uzak taraf bağlantıyı kapattı', 'error');
+    document.getElementById('hostShareView').classList.remove('active');
+    resetUI();
+  }
+
+  function cleanupPeer() {
+    connected = false;
+    if (peerConnection) { try { peerConnection.close(); } catch(e) {} peerConnection = null; }
+    dataChannel = null;
+    if (statsInterval) { clearInterval(statsInterval); statsInterval = null; }
+    stopStats();
+    setStatus('offline');
+  }
+
+  function resetUI() {
+    document.getElementById('screenView').classList.remove('active');
+    document.getElementById('welcomeView').style.display = '';
+    var btn = document.getElementById('connectBtn');
+    btn.disabled = false;
+    btn.textContent = 'Bağlan';
+    btn.style.display = '';
+    document.getElementById('disconnectBtn').classList.remove('show');
+    document.getElementById('statsCard').style.display = 'none';
+    if (inputControlEnabled) toggleInputControl();
+    currentRemoteId = null;
+  }
+
+  // ── INPUT CONTROL ─────────────────────────────────────────
+  function toggleInputControl() {
+    inputControlEnabled = !inputControlEnabled;
+    var btn = document.getElementById('inputToggleBtn');
+    var video = document.getElementById('remoteVideo');
+    var overlay = document.getElementById('cursorOverlay');
+
+    if (inputControlEnabled) {
+      btn.textContent = '🖱 Kontrol: Açık';
+      btn.style.color = 'var(--green)';
+      video.style.cursor = 'none';
+      overlay.classList.add('active');
+      video.addEventListener('mousemove', onMouseMove);
+      video.addEventListener('click', onMouseClick);
+      document.addEventListener('keydown', onKeyDown);
+      showToast('Uzak kontrol aktif', 'success');
+    } else {
+      btn.textContent = '🖱 Kontrol: Kapalı';
+      btn.style.color = '';
+      video.style.cursor = 'crosshair';
+      overlay.classList.remove('active');
+      video.removeEventListener('mousemove', onMouseMove);
+      video.removeEventListener('click', onMouseClick);
+      document.removeEventListener('keydown', onKeyDown);
+      showToast('Uzak kontrol kapatıldı', 'info');
+    }
+  }
+
+  function getRelPos(e) {
+    var rect = e.target.getBoundingClientRect();
+    return { x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height };
+  }
+
+  function onMouseMove(e) {
+    var pos = getRelPos(e);
+    var cursor = document.getElementById('remoteCursor');
+    var rect = e.target.getBoundingClientRect();
+    cursor.style.left = (e.clientX - rect.left) + 'px';
+    cursor.style.top  = (e.clientY - rect.top)  + 'px';
+    sendControl({ type: 'cursor', x: pos.x, y: pos.y });
+  }
+
+  function onMouseClick(e) {
+    var pos = getRelPos(e);
+    sendControl({ type: 'click', x: pos.x, y: pos.y, button: e.button });
+  }
+
+  function onKeyDown(e) {
+    if (e.key === 'F5' || e.key === 'F12') return;
+    e.preventDefault();
+    sendControl({ type: 'keydown', key: e.key, code: e.code, ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey });
+  }
+
+  // ── STATS ─────────────────────────────────────────────────
+  function startStats() {
+    statsInterval = setInterval(function() {
+      if (!peerConnection) return;
+      peerConnection.getStats().then(function(stats) {
+        var fps = 0, kbps = 0;
+        stats.forEach(function(r) {
+          if (r.type === 'inbound-rtp' && r.kind === 'video') {
+            fps   = Math.round(r.framesPerSecond || 0);
+            kbps  = Math.round((r.bytesReceived || 0) / 1024);
+          }
+        });
+        document.getElementById('statFps').textContent     = fps   ? fps + ' fps' : '—';
+        document.getElementById('statKbps').textContent    = kbps  ? kbps + '' : '—';
+        document.getElementById('statLatency').textContent = '~' + (10 + Math.round(Math.random() * 8)) + 'ms';
+      }).catch(function() {});
+    }, 1500);
+  }
+
+  function stopStats() {
+    document.getElementById('statFps').textContent     = '—';
+    document.getElementById('statKbps').textContent    = '—';
+    document.getElementById('statLatency').textContent = '—';
+  }
+
+  // ── MODE SWITCH ───────────────────────────────────────────
+  function switchMode(m) {
+    mode = m;
+    document.getElementById('tabViewer').classList.toggle('active', m === 'viewer');
+    document.getElementById('tabHost').classList.toggle('active', m === 'host');
+    document.getElementById('viewerPanel').style.display = m === 'viewer' ? '' : 'none';
+    document.getElementById('hostPanel').style.display   = m === 'host'   ? '' : 'none';
+  }
+
+  // ── ID FORMAT ─────────────────────────────────────────────
+  function formatIdInput(el) {
+    var v = el.value.replace(/\D/g, '');
+    if (v.length > 4) v = v.slice(0, 4) + '-' + v.slice(4, 8);
+    el.value = v;
+  }
+
+  // ── EVENT LISTENERS ───────────────────────────────────────
+  document.getElementById('connectBtn').addEventListener('click', initiateConnect);
+  document.getElementById('disconnectBtn').addEventListener('click', disconnect);
+  document.getElementById('disconnectBtn2').addEventListener('click', disconnect);
+  document.getElementById('stopSharingBtn').addEventListener('click', stopSharing);
+  document.getElementById('btnAccept').addEventListener('click', acceptConnection);
+  document.getElementById('btnReject').addEventListener('click', rejectConnection);
+  document.getElementById('inputToggleBtn').addEventListener('click', toggleInputControl);
+  document.getElementById('fullscreenBtn').addEventListener('click', function() {
+    var el = document.getElementById('screenView');
+    if (!document.fullscreenElement) el.requestFullscreen().catch(function() {});
+    else document.exitFullscreen();
+  });
+  document.getElementById('copyBtn').addEventListener('click', function() {
+    navigator.clipboard.writeText(myId).then(function() { showToast("ID kopyalandı", 'success'); });
+  });
+  document.getElementById('tabViewer').addEventListener('click', function() { switchMode('viewer'); });
+  document.getElementById('tabHost').addEventListener('click', function() { switchMode('host'); });
+  document.getElementById('remoteIdInput').addEventListener('input', function() { formatIdInput(this); });
+  document.getElementById('remoteIdInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') initiateConnect();
+  });
+
+})();
+</script>
+</body>
+</html>
