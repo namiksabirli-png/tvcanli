@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video & Ses → MP3 Dönüştürücü</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0e1a;min-height:100vh;color:#e8e6f0;padding:2rem 1rem}
+  .wrap{max-width:700px;margin:0 auto}
+
+  .hero{background:linear-gradient(135deg,#534AB7 0%,#7F77DD 100%);border-radius:20px;padding:2rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:18px}
+  .hero-icon{width:60px;height:60px;background:rgba(255,255,255,.15);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0}
+  .hero h1{color:#fff;font-size:22px;font-weight:600;margin-bottom:4px}
+  .hero p{color:#CECBF6;font-size:13px;line-height:1.5}
+
+  .pills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1.25rem}
+  .pill{font-size:11px;font-weight:600;padding:4px 11px;border-radius:20px;letter-spacing:.3px}
+  .pill.v{background:#2a254f;color:#AFA9EC;border:1px solid #534AB7}
+  .pill.a{background:#0d2e1f;color:#5DCAA5;border:1px solid #1D9E75}
+
+  .drop{border:2px dashed #534AB7;border-radius:16px;padding:2.5rem 1.5rem;text-align:center;cursor:pointer;background:#1a1730;transition:.2s}
+  .drop:hover,.drop.over{background:#201c3a;border-color:#7F77DD}
+  .drop svg{width:44px;height:44px;color:#7F77DD;margin-bottom:12px}
+  .drop h2{font-size:16px;font-weight:600;color:#e8e6f0;margin-bottom:6px}
+  .drop p{font-size:13px;color:#8884a8;margin-bottom:1.25rem}
+  .btn-pick{background:#534AB7;color:#fff;border:none;border-radius:10px;padding:10px 22px;font-size:13px;font-weight:600;cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:7px}
+  .btn-pick:hover{background:#7F77DD}
+
+  .opts{display:flex;align-items:center;gap:12px;margin:1rem 0;background:#1a1730;border-radius:12px;padding:12px 16px}
+  .opts label{font-size:13px;color:#8884a8;white-space:nowrap}
+  .opts select{flex:1;background:#0f0e1a;color:#e8e6f0;border:1px solid #534AB7;border-radius:8px;padding:7px 10px;font-size:13px;outline:none}
+  .opts select:focus{border-color:#7F77DD}
+
+  .file-list{display:flex;flex-direction:column;gap:8px;margin-top:1rem}
+  .fcard{background:#1a1730;border:1px solid #2a254f;border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:12px;transition:.2s}
+  .fcard.done{border-color:#1D9E75}
+  .fcard.err{border-color:#c0392b}
+  .ficon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+  .ficon.v{background:#2a254f;color:#7F77DD}
+  .ficon.a{background:#0d2e1f;color:#5DCAA5}
+  .fname{font-size:13px;font-weight:600;color:#e8e6f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fmeta{font-size:11px;color:#6b6880;margin-top:2px}
+  .bar-bg{height:4px;background:#2a254f;border-radius:2px;margin-top:7px;overflow:hidden}
+  .bar-fill{height:100%;background:linear-gradient(90deg,#534AB7,#5DCAA5);width:0%;transition:width .2s;border-radius:2px}
+  .pct{font-size:10px;color:#7F77DD;margin-top:3px}
+
+  .badge{font-size:11px;font-weight:600;padding:4px 12px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+  .badge.wait{background:#2a254f;color:#8884a8}
+  .badge.prog{background:#1a2f4f;color:#85B7EB}
+  .badge.done{background:#0d2e1f;color:#5DCAA5}
+  .badge.err{background:#2e0d0d;color:#f09595}
+  .btn-dl{background:#1D9E75;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:.2s}
+  .btn-dl:hover{background:#0F6E56}
+
+  .actions{display:flex;gap:10px;margin-top:1.25rem;flex-wrap:wrap}
+  .btn-go{background:linear-gradient(135deg,#534AB7,#7F77DD);color:#fff;border:none;border-radius:10px;padding:11px 28px;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:.2s;box-shadow:0 4px 15px rgba(83,74,183,.4)}
+  .btn-go:hover{opacity:.9;transform:translateY(-1px)}
+  .btn-go:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+  .btn-clr{background:transparent;color:#8884a8;border:1px solid #2a254f;border-radius:10px;padding:11px 20px;font-size:13px;cursor:pointer;transition:.2s}
+  .btn-clr:hover{border-color:#534AB7;color:#AFA9EC}
+
+  .privacy{font-size:12px;color:#6b6880;margin-top:1rem;display:flex;align-items:center;gap:7px;padding:10px 14px;background:#1a1730;border-radius:10px;border:1px solid #2a254f}
+  .privacy svg{flex-shrink:0;color:#534AB7}
+
+  .legend{display:flex;gap:16px;margin-bottom:1rem;font-size:12px;color:#6b6880}
+  .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:3px}
+
+  @media(max-width:480px){
+    .hero{flex-direction:column;text-align:center}
+    body{padding:1rem .5rem}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="hero-icon">🎵</div>
+    <div>
+      <h1>Video & Ses → MP3 Dönüştürücü</h1>
+      <p>MP4, M4A, WEBM, WAV, FLAC ve daha fazlasını MP3'e çevirin.<br>Tüm işlemler tarayıcınızda gerçekleşir — dosyalarınız hiçbir yere gönderilmez.</p>
+    </div>
+  </div>
+
+  <div class="pills">
+    <span class="pill v">MP4</span><span class="pill v">WEBM</span><span class="pill v">MOV</span>
+    <span class="pill v">AVI</span><span class="pill v">MKV</span><span class="pill v">FLV</span>
+    <span class="pill v">WMV</span><span class="pill v">M4V</span><span class="pill v">3GP</span>
+    <span class="pill a">M4A</span><span class="pill a">AAC</span><span class="pill a">OGG</span>
+    <span class="pill a">WAV</span><span class="pill a">FLAC</span><span class="pill a">OPUS</span>
+    <span class="pill a">AIFF</span>
+  </div>
+
+  <div class="legend">
+    <span style="display:flex;align-items:center;gap:5px"><span class="dot" style="background:#534AB7"></span> Video formatları</span>
+    <span style="display:flex;align-items:center;gap:5px"><span class="dot" style="background:#1D9E75"></span> Ses formatları</span>
+  </div>
+
+  <div class="drop" id="dz">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto">
+      <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/>
+      <path d="M12 12v9"/><path d="m8 17 4-5 4 5"/>
+    </svg>
+    <h2>Dosyaları buraya sürükle & bırak</h2>
+    <p>Video veya ses dosyası — MP4, M4A, WEBM, AAC, WAV ve daha fazlası</p>
+    <button class="btn-pick" onclick="document.getElementById('fi').click()">
+      📂 Dosya Seç
+    </button>
+    <input type="file" id="fi" multiple accept="video/*,audio/*,.m4a,.aac,.flac,.ogg,.opus,.aiff,.wma,.wav" style="display:none">
+  </div>
+
+  <div class="opts">
+    <label>🎚️ Ses kalitesi:</label>
+    <select id="kbps">
+      <option value="320">320 kbps — En yüksek kalite</option>
+      <option value="192" selected>192 kbps — Önerilen</option>
+      <option value="128">128 kbps — Normal</option>
+      <option value="64">64 kbps — Küçük dosya boyutu</option>
+    </select>
+  </div>
+
+  <div class="file-list" id="fl"></div>
+
+  <div class="actions" id="ar" style="display:none">
+    <button class="btn-go" id="cvtBtn" onclick="convertAll()">
+      ▶ Dönüştür
+    </button>
+    <button class="btn-clr" onclick="clearAll()">
+      🗑 Temizle
+    </button>
+  </div>
+
+  <div class="privacy" id="pn" style="display:none">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    Tüm işlemler tamamen tarayıcınızda gerçekleşir. Dosyalarınız hiçbir sunucuya gönderilmez.
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+<script>
+const VIDEO_EXT=/\.(mp4|webm|mov|avi|mkv|flv|wmv|m4v|3gp|ogv|ts|mts|m2ts|vob|f4v|asf|divx)$/i;
+const AUDIO_EXT=/\.(m4a|aac|ogg|opus|wav|flac|aiff|aif|wma|oga|mp2|mp3)$/i;
+const state=[];
+
+function getKind(f){
+  if(f.type&&f.type.startsWith('video/'))return 'v';
+  if(f.type&&f.type.startsWith('audio/'))return 'a';
+  if(VIDEO_EXT.test(f.name))return 'v';
+  if(AUDIO_EXT.test(f.name))return 'a';
+  return null;
+}
+function fmtSz(b){return b>1048576?(b/1048576).toFixed(1)+' MB':(b/1024).toFixed(0)+' KB'}
+
+function addFiles(files){
+  let added=0;
+  for(const f of files){
+    const k=getKind(f);
+    if(k){state.push({f,k,status:'wait',pct:0,url:null});added++}
+  }
+  if(!added&&files.length)alert('Desteklenen dosya bulunamadı.\nVideo: MP4, WEBM, MOV, MKV...\nSes: M4A, AAC, WAV, OGG, FLAC...');
+  render();
+}
+
+function render(){
+  const fl=document.getElementById('fl');
+  const ar=document.getElementById('ar');
+  const pn=document.getElementById('pn');
+  fl.innerHTML='';
+  if(!state.length){ar.style.display='none';pn.style.display='none';return}
+  ar.style.display='flex';pn.style.display='flex';
+  state.forEach((item,i)=>{
+    const ext=item.f.name.split('.').pop().toUpperCase();
+    let badge='',extra='';
+    if(item.status==='wait')badge='<span class="badge wait">Bekliyor</span>';
+    else if(item.status==='prog'){
+      badge=`<span class="badge prog">⏳ %${item.pct}</span>`;
+      extra=`<div class="bar-bg"><div class="bar-fill" id="bf${i}" style="width:${item.pct}%"></div></div>`;
+    }
+    else if(item.status==='done')badge=`<a class="btn-dl" href="${item.url}" download="${item.f.name.replace(/\.[^.]+$/,'')}.mp3">⬇ İndir</a>`;
+    else badge='<span class="badge err">✕ Hata oluştu</span>';
+    const card=document.createElement('div');
+    card.className=`fcard${item.status==='done'?' done':item.status==='err'?' err':''}`;
+    card.id='fc'+i;
+    card.innerHTML=`
+      <div class="ficon ${item.k}">${item.k==='a'?'🎵':'🎬'}</div>
+      <div style="min-width:0">
+        <div class="fname">${item.f.name}</div>
+        <div class="fmeta">${ext} · ${fmtSz(item.f.size)} · ${item.k==='a'?'Ses dosyası':'Video dosyası'}</div>
+        ${extra}
+      </div>
+      <div>${badge}</div>`;
+    fl.appendChild(card);
+  });
+}
+
+function setP(i,pct){
+  state[i].pct=pct;
+  const bf=document.getElementById('bf'+i);
+  const badge=document.querySelector('#fc'+i+' .badge.prog');
+  if(bf)bf.style.width=pct+'%';
+  if(badge)badge.textContent='⏳ %'+pct;
+}
+
+async function convertAll(){
+  const btn=document.getElementById('cvtBtn');
+  btn.disabled=true;btn.textContent='⏳ Dönüştürülüyor...';
+  const kbps=parseInt(document.getElementById('kbps').value);
+  for(let i=0;i<state.length;i++){
+    if(state[i].status==='done')continue;
+    state[i].status='prog';state[i].pct=0;render();
+    try{
+      state[i].url=await toMp3(state[i].f,i,kbps);
+      state[i].status='done';
+    }catch(e){
+      console.error(e);
+      state[i].status='err';
+    }
+    render();
+  }
+  btn.disabled=false;btn.textContent='▶ Dönüştür';
+}
+
+function toMp3(file,idx,kbps){
+  return new Promise((res,rej)=>{
+    const reader=new FileReader();
+    reader.onerror=rej;
+    reader.onload=async e=>{
+      try{
+        setP(idx,5);
+        const ctx=new(window.AudioContext||window.webkitAudioContext)();
+        let decoded;
+        try{decoded=await ctx.decodeAudioData(e.target.result.slice(0))}
+        catch(de){rej(new Error('Ses çözülemedi: '+de.message));return}
+        setP(idx,20);
+        const sr=decoded.sampleRate;
+        const nc=Math.min(decoded.numberOfChannels,2);
+        const enc=new lamejs.Mp3Encoder(nc,sr,kbps);
+        const BLOCK=1152*16;
+        const c0=decoded.getChannelData(0);
+        const c1=nc>1?decoded.getChannelData(1):c0;
+        const total=c0.length;
+        const chunks=[];
+        for(let n=0;n<total;n+=BLOCK){
+          const end=Math.min(n+BLOCK,total);
+          const l=f32i16(c0.subarray(n,end));
+          const r=f32i16(c1.subarray(n,end));
+          for(let s=0;s<l.length;s+=1152){
+            const sl=l.subarray(s,s+1152);
+            const sr2=r.subarray(s,s+1152);
+            const buf=nc>1?enc.encodeBuffer(sl,sr2):enc.encodeBuffer(sl);
+            if(buf.length)chunks.push(new Uint8Array(buf));
+          }
+          setP(idx,20+Math.round((n/total)*75));
+          await new Promise(r=>setTimeout(r,0));
+        }
+        const tail=enc.flush();
+        if(tail.length)chunks.push(new Uint8Array(tail));
+        setP(idx,100);
+        res(URL.createObjectURL(new Blob(chunks,{type:'audio/mpeg'})));
+      }catch(err){rej(err)}
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function f32i16(f){
+  const o=new Int16Array(f.length);
+  for(let i=0;i<f.length;i++){const s=Math.max(-1,Math.min(1,f[i]));o[i]=s<0?s*32768:s*32767}
+  return o;
+}
+
+function clearAll(){state.length=0;render()}
+
+const dz=document.getElementById('dz');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');addFiles([...e.dataTransfer.files])});
+document.getElementById('fi').addEventListener('change',function(){addFiles([...this.files]);this.value=''});
+</script>
+</body>
+</html>
