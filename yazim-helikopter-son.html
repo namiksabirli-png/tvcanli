@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yazım Helikopter</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#e8f4f8;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:'Segoe UI',sans-serif;overflow:hidden;user-select:none;touch-action:manipulation}
+#wrap{position:relative;width:100%;height:100vh;display:flex;align-items:center;justify-content:center}
+canvas{display:block;border-radius:10px;box-shadow:0 4px 32px rgba(0,0,0,0.18);max-width:100%;max-height:100vh}
+#ui{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:center;pointer-events:none;z-index:10;flex-wrap:wrap;justify-content:center}
+.pill{background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.12);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;color:#fff;letter-spacing:.4px;white-space:nowrap}
+.pill span{color:#fbbf24}
+#msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:28px;font-weight:900;pointer-events:none;opacity:0;transition:opacity .3s;z-index:20;text-shadow:0 2px 8px #000;letter-spacing:1px}
+/* Fullscreen button */
+#fsBtn{position:absolute;bottom:12px;right:12px;z-index:30;background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:#fff;font-size:18px;padding:6px 10px;cursor:pointer;line-height:1;transition:background .15s}
+#fsBtn:hover{background:rgba(0,0,0,0.7)}
+</style>
+</head>
+<body>
+<div id="wrap">
+<div id="ui">
+  <div class="pill">Skor: <span id="skor">0</span></div>
+  <div class="pill">Set: <span id="setno">1</span></div>
+  <div class="pill">Yanlış: <span id="yanlis" style="color:#ef4444">0</span> / 3</div>
+  <div class="pill">Seviye: <span id="seviye">1</span></div>
+</div>
+<div id="msg"></div>
+<canvas id="c"></canvas>
+<button id="fsBtn" title="Tam Ekran">⛶</button>
+</div>
+
+<script>
+// ── KELİME LİSTESİ (Doğru yazım → Yanlış yazım) ─────────────────────────────
+// Format: ['doğru', 'yanlış']  — helikopter yanlışı gösterir, oyuncu yanlışı vurur
+const ESANLAMLILAR = [
+  ['absürt','absürd'],['abur cubur','aburcubur'],['acayip','acaib'],
+  ['açık büfe','açıkbüfe'],['açık oturum','açıkoturum'],['açıkgöz','açık göz'],
+  ['ada çayı','adaçayı'],['adamakıllı','adam akıllı'],['ağırbaşlı','ağır başlı'],
+  ['ağustos böceği','ağustosböceği'],['ağzı sıkı','ağzısıkı'],['aidat','ayidat'],
+  ['akarsu','akar su'],['akaryakıt','akar yakıt'],['aksesuar','aksesüar'],
+  ['akşamüstü','akşam üstü'],['aktüel','aktuel'],['alaca karanlık','alacakaranlık'],
+  ['alçak gönüllü','alçakgönüllü'],['alın yazısı','alınyazısı'],['alışveriş','alış veriş'],
+  ['anaokulu','ana okulu'],['anapara','ana para'],['anayasa','ana yasa'],
+  ['antrenman','antreman'],['ardı sıra','ardısıra'],['asfalt','asvalt'],
+  ['ay ışığı','ayışığı'],['basmakalıp','basma kalıp'],['başa baş','başabaş'],
+  ['baş etmek','başetmek'],['başhekim','baş hekim'],['başyapıt','baş yapıt'],
+  ['bilim kurgu','bilimkurgu'],['bilim adamı','bilimadamı'],['birtakım','bir takım'],
+  ['blok','bilok'],['boşboğaz','boş boğaz'],['buz dağı','buzdağı'],
+  ['çağ dışı','çağdışı'],['çalar saat','çalarsaat'],['çalı çırpı','çalıçırpı'],
+  ['çarçur','çarcur'],['çekidüzen','çeki düzen'],['çevre yolu','çevreyolu'],
+  ['darmadağınık','darma dağınık'],['deli dolu','delidolu'],['denizaltı','deniz altı'],
+  ['dinozor','dinazor'],['astsubay','assubay'],['doküman','döküman'],
+  ['enstrüman','enstürman'],['erozyon','erazyon'],['espri','espiri'],
+  ['etüt','etüd'],['folklor','folklör'],['gelgit','gel git'],
+  ['gelişigüzel','gelişi güzel'],['gitgide','git gide'],['grup','gurup'],
+  ['altyapı','alt yapı'],['gün batımı','günbatımı'],['günübirlik','günü birlik'],
+  ['hafta sonu','haftasonu'],['havaalanı','hava alanı'],['hazırcevap','hazır cevap'],
+  ['her biri','herbiri'],['herkes','herkez'],['heykeltıraş','heykeltraş'],
+  ['her şey','herşey'],['herhangi bir','herhangibir'],['hiçbiri','hiç biri'],
+  ['hiçbir','hiç bir'],['hoparlör','hoparlor'],['hoş geldin','hoşgeldin'],
+  ['hoşgörü','hoş görü'],['faaliyet','faliyet'],['iddia','iddea'],
+  ['iğne iplik','iğneiplik'],['ilkokul','ilk okul'],['ilkbahar','ilk bahar'],
+  ['ilköğretim','ilk öğretim'],['ilk yardım','ilkyardım'],['illaki','illa ki'],
+  ['iş yeri','işyeri'],['jüri','juri'],['kalemtıraş','kalemtraş'],
+  ['kartpostal','kart postal'],['alabalık','ala balık'],['kastetmek','kasdetmek'],
+  ['kıraathane','kırathane'],['kılavuz','klavuz'],['koleksiyon','kolleksiyon'],
+  ['kolektif','kollektif'],['kravat','kıravat'],['maalesef','malesef'],
+  ['mademki','madem ki'],['mozaik','mozayik'],['nüfus','nufus'],
+  ['okuryazar','okur yazar'],['olağanüstü','olağan üstü'],['ola ki','olaki'],
+  ['oysaki','oysa ki'],['orijinal','orjinal'],['ön söz','önsöz'],
+  ['ön yargı','önyargı'],['öz güven','özgüven'],['paraşüt','paraşüd'],
+  ['pastane','pastahane'],['piramit','pramit'],['restoran','restorant'],
+  ['ret','red'],['röportaj','röpörtaj'],['sömestir','sömestr'],
+  ['sözüm ona','sözümona'],['stat','stad'],['stadyum','statyum'],
+  ['stajyer','stajer'],['sürpriz','süpriz'],['şarj','şarz'],
+  ['tiraj','traj'],['tramvay','tranvay'],['ulu orta','uluorta'],
+  ['ünvan','unvan'],['üstünkörü','üstün körü'],['yakamoz','yakomoz'],
+  ['yan yana','yanyana'],['yeryüzü','yer yüzü'],['yol ağzı','yolağzı'],
+  ['yurt dışı','yurtdışı'],['yükseköğrenim','yüksek öğrenim'],['zulüm','zülüm'],
+  ['züccaciye','zücaciye'],['zürafa','zurafa'],['alt yazı','altyazı'],
+  ['ana dil','anadil'],['anekdot','anektod'],['atardamar','atar damar'],
+  ['atölye','atelye'],['babayiğit','baba yiğit'],['bağ bozumu','bağbozumu'],
+  ['bahçıvan','bahçevan'],['başıboş','başı boş'],['başıbozuk','başı bozuk'],
+  ['belli başlı','bellibaşlı'],['beyefendi','bey efendi'],['hanımefendi','hanım efendi'],
+  ['bilinçaltı','bilinç altı'],['birdenbire','birden bire'],['bitpazarı','bit pazarı'],
+  ['büyükbaş hayvan','büyük baş hayvan'],['canciğer','can ciğer'],['cankurtaran','can kurtaran'],
+  ['sıra dışı','sıradışı'],['çer çöp','çerçöp'],['dershane','dersane'],
+  ['deşarj','deşarz'],['diktatör','dikdatör'],['doludizgin','dolu dizgin'],
+  ['dörtnala','dört nala'],['günaşırı','gün aşırı'],['suçiçeği','su çiçeği'],
+  ['su böreği','suböreği'],['hamam böceği','hamamböceği'],['hıncahınç','hınca hınç'],
+  ['hoşbeş etmek','hoş beş etmek'],['kurdele','kurdelye'],['kuş bakışı','kuşbakışı'],
+  ['laboratuvar','laboratuar'],['maydanoz','maydonoz'],['minibüs','münübüs'],
+  ['müdafaa','müdafa'],['müracaat','müracat'],['müsaade','müsade'],
+  ['müteahhit','mütahhit'],['mütevazı','mütevazi'],['örtbas','ört bas'],
+  ['randıman','randman'],['rötar','rotar'],['rötuş','rötüş'],
+  ['sağanak','sağnak'],['saygıdeğer','saygı değer'],['sezaryen','sezeryan'],
+  ['sütliman','süt liman'],['şofben','şohben'],['şoför','şöför'],
+  ['şoke olmak','şok olmak'],['tıpatıp','tıpa tıp'],['tribün','trübün'],
+  ['turkuaz','turkuvaz'],['üçkâğıtçı','üç kâğıtçı'],['vaat','vaad'],
+  ['vadetmek','vaadetmek'],['vardiya','vardiye'],['varsayım','var sayım'],
+  ['vejetaryen','vejateryen'],['yıl dönümü','yıldönümü'],['yüz akı','yüzakı'],
+  ['yüzükoyun','yüzü koyun'],['yüzüstü','yüz üstü'],['zafiyet','zaafiyet'],
+  ['zar zor','zarzor'],['fark etmek','farketmek'],['terk etmek','terketmek'],
+  ['art arda','ardarda'],['ayırt etmek','ayırdetmek'],['zehretmek','zehir etmek'],
+  ['darbetmek','darp etmek'],['cezbetmek','cezp etmek'],['ant içmek','and içmek'],
+  ['katetmek','kat etmek'],['hak etmek','hakketmek'],['halletmek','hal etmek'],
+  ['sevk etmek','sevketmek'],['bağ evi','bağevi'],['dağ evi','dağevi'],
+  ['bozayı','boz ayı'],['huzurevi','huzur evi'],['eşkâl','eşgal'],
+  ['kavanoz','kavonoz'],['parlamento','parlemento'],['rezervasyon','rezarvasyon'],
+  ['yarımada','yarım ada'],['tabii ki','tabiiki'],['karmakarışık','karma karışık'],
+  ['saçma sapan','saçmasapan'],['sıradağlar','sıra dağlar'],['itfaiye','itfaye'],
+  ['menetmek','men etmek'],['dizüstü bilgisayar','diz üstü bilgisayar'],
+];
+
+// ── SES SİSTEMİ (WebAudio API) ────────────────────────────────────────────────
+let audioCtx = null;
+
+function getAudio(){
+  if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+
+// Doğru patlama: parlak, yükselen "ding-boom" + tiz çınlama
+function playCorrect(){
+  const ac = getAudio();
+  const now = ac.currentTime;
+
+  // 1) Yumuşak "boom" — düşük frekans
+  const osc1 = ac.createOscillator();
+  const gain1 = ac.createGain();
+  osc1.connect(gain1); gain1.connect(ac.destination);
+  osc1.type='sine'; osc1.frequency.setValueAtTime(120,now);
+  osc1.frequency.exponentialRampToValueAtTime(60,now+0.35);
+  gain1.gain.setValueAtTime(0.45,now);
+  gain1.gain.exponentialRampToValueAtTime(0.001,now+0.4);
+  osc1.start(now); osc1.stop(now+0.4);
+
+  // 2) "Ding" tiz çınlama
+  const osc2 = ac.createOscillator();
+  const gain2 = ac.createGain();
+  osc2.connect(gain2); gain2.connect(ac.destination);
+  osc2.type='sine'; osc2.frequency.setValueAtTime(880,now+0.05);
+  osc2.frequency.exponentialRampToValueAtTime(1100,now+0.12);
+  gain2.gain.setValueAtTime(0.0,now);
+  gain2.gain.linearRampToValueAtTime(0.35,now+0.06);
+  gain2.gain.exponentialRampToValueAtTime(0.001,now+0.55);
+  osc2.start(now+0.04); osc2.stop(now+0.6);
+
+  // 3) Üçüncü ton — zafer akordu hissi
+  const osc3 = ac.createOscillator();
+  const gain3 = ac.createGain();
+  osc3.connect(gain3); gain3.connect(ac.destination);
+  osc3.type='triangle'; osc3.frequency.setValueAtTime(660,now+0.08);
+  gain3.gain.setValueAtTime(0.0,now+0.06);
+  gain3.gain.linearRampToValueAtTime(0.2,now+0.12);
+  gain3.gain.exponentialRampToValueAtTime(0.001,now+0.5);
+  osc3.start(now+0.08); osc3.stop(now+0.55);
+
+  // 4) Noise burst (patlama gürültüsü) — kısa
+  const bufLen = ac.sampleRate * 0.08;
+  const buf = ac.createBuffer(1, bufLen, ac.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<bufLen;i++) data[i]=(Math.random()*2-1);
+  const src = ac.createBufferSource();
+  const noiseGain = ac.createGain();
+  const filter = ac.createBiquadFilter();
+  filter.type='bandpass'; filter.frequency.value=400; filter.Q.value=0.5;
+  src.buffer=buf; src.connect(filter); filter.connect(noiseGain); noiseGain.connect(ac.destination);
+  noiseGain.gain.setValueAtTime(0.25,now);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001,now+0.12);
+  src.start(now); src.stop(now+0.12);
+}
+
+// Yanlış patlama: sert, düşen "thud-buzz" + uğursuz tiz
+function playWrong(){
+  const ac = getAudio();
+  const now = ac.currentTime;
+
+  // 1) Sert çarpma sesi — düşen frekans
+  const osc1 = ac.createOscillator();
+  const gain1 = ac.createGain();
+  osc1.connect(gain1); gain1.connect(ac.destination);
+  osc1.type='sawtooth'; osc1.frequency.setValueAtTime(220,now);
+  osc1.frequency.exponentialRampToValueAtTime(40,now+0.3);
+  gain1.gain.setValueAtTime(0.5,now);
+  gain1.gain.exponentialRampToValueAtTime(0.001,now+0.35);
+  osc1.start(now); osc1.stop(now+0.35);
+
+  // 2) Uğursuz tiz — düşen
+  const osc2 = ac.createOscillator();
+  const gain2 = ac.createGain();
+  osc2.connect(gain2); gain2.connect(ac.destination);
+  osc2.type='square'; osc2.frequency.setValueAtTime(440,now+0.02);
+  osc2.frequency.exponentialRampToValueAtTime(150,now+0.4);
+  gain2.gain.setValueAtTime(0.0,now);
+  gain2.gain.linearRampToValueAtTime(0.22,now+0.04);
+  gain2.gain.exponentialRampToValueAtTime(0.001,now+0.45);
+  osc2.start(now+0.02); osc2.stop(now+0.5);
+
+  // 3) Geniş bant gürültü — büyük patlama
+  const bufLen = ac.sampleRate * 0.18;
+  const buf = ac.createBuffer(1, bufLen, ac.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<bufLen;i++) data[i]=(Math.random()*2-1);
+  const src = ac.createBufferSource();
+  const noiseGain = ac.createGain();
+  const filter = ac.createBiquadFilter();
+  filter.type='lowpass'; filter.frequency.value=600;
+  src.buffer=buf; src.connect(filter); filter.connect(noiseGain); noiseGain.connect(ac.destination);
+  noiseGain.gain.setValueAtTime(0.55,now);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001,now+0.2);
+  src.start(now); src.stop(now+0.2);
+}
+
+// ── CANVAS SETUP (Responsive) ─────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W = 640, H = 520;
+
+function resizeCanvas(){
+  const wrap = document.getElementById('wrap');
+  const ww = wrap.clientWidth, wh = wrap.clientHeight;
+  const aspect = 640/520;
+  let cw = ww, ch = ww / aspect;
+  if(ch > wh){ ch = wh; cw = wh * aspect; }
+  canvas.style.width  = cw + 'px';
+  canvas.style.height = ch + 'px';
+  // internal resolution stays fixed for game logic
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+canvas.width = W; canvas.height = H;
+
+// ── FULLSCREEN ─────────────────────────────────────────────────────────────────
+const fsBtn = document.getElementById('fsBtn');
+fsBtn.addEventListener('click', ()=>{
+  const el = document.documentElement;
+  if(!document.fullscreenElement){
+    (el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen).call(el);
+    fsBtn.textContent='✕';
+  } else {
+    (document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen).call(document);
+    fsBtn.textContent='⛶';
+  }
+});
+document.addEventListener('fullscreenchange',()=>{
+  if(!document.fullscreenElement) fsBtn.textContent='⛶';
+  resizeCanvas();
+});
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let skor = 0, yanlis = 0, seviye = 1;
+let heliWord = 'Yanlış Yazılanı Vur!';
+let variller = [];
+let mermi = null;
+let patlama = null;
+let heli = { x: W/2, vx: 1.2, rotorAngle: 0, shake: 0 };
+let particles = [];
+let animId;
+let gameOver = false;
+let flashMsg = { text:'', color:'#fff', timer:0 };
+let showStart = true;
+
+const VARIL_COUNT = 4;
+const VARIL_W = 130, VARIL_H = 90;
+const YERDEN = H - 80;
+const HELI_Y = 100;
+
+// ── SET SİSTEMİ ───────────────────────────────────────────────────────────────
+// Her SET: 5 varil aynı anda görünür, 2'si yanlış yazılmış (vurulacak), 3'ü doğru
+// İki yanlış vurulunca SET geçer, 5 VARIL BİRDEN değişir
+// Geçmişte görülen setler usedHistory'de tutuluyor
+// 5 set sonra, geçmiş setlerden 1 kelime geri gelebilir (tekrar sorusu)
+
+let vurulmuYanlislar = 0;
+let setCounter = 0;          // kaç set tamamlandı
+let usedPairKeys = new Set(); // kullanılan çiftlerin doğru yazımı
+let historyPool = [];          // [pair, pair, ...] geçmiş kullanılan çiftler (tekrar için)
+let reviewPair = null;         // tekrar sorusuna rezerve edilmiş çift
+
+function buildSet(){
+  // Toplam havuz: kullanılmamış çiftler
+  let pool = ESANLAMLILAR.filter(p => !usedPairKeys.has(p[0]));
+  if(pool.length < 5){ usedPairKeys.clear(); pool = [...ESANLAMLILAR]; }
+
+  // Her 5 sette bir, historyPool'dan 1 çift geri al (tekrar sorusu)
+  let reviewItem = null;
+  if(setCounter > 0 && setCounter % 5 === 0 && historyPool.length > 0){
+    // En eski kullanılan çiftlerden rastgele 1 al
+    const idx = Math.floor(Math.random() * Math.min(historyPool.length, 10));
+    reviewItem = historyPool[idx];
+  }
+
+  // 5 çift seç (2 yanlış hedef + 3 doğru distractor)
+  const shuffledPool = shuffle([...pool]);
+
+  // yanlış hedef çiftler: 2 adet
+  const target1 = reviewItem || shuffledPool[0];
+  const target2 = shuffledPool[ reviewItem ? 0 : 1 ];
+
+  usedPairKeys.add(target1[0]);
+  usedPairKeys.add(target2[0]);
+  historyPool.push(target1, target2);
+  // history max 30 çift
+  if(historyPool.length > 30) historyPool = historyPool.slice(-30);
+
+  // doğru distractor çiftler: 2 adet (doğru yazımlarını göster)
+  const dist = [];
+  for(const p of shuffledPool){
+    if(p[0] !== target1[0] && p[0] !== target2[0] && !dist.find(d=>d[0]===p[0])){
+      dist.push(p);
+      usedPairKeys.add(p[0]);
+      historyPool.push(p);
+      if(dist.length >= 2) break;
+    }
+  }
+  while(dist.length < 2) dist.push(['???','???']); // güvenlik
+
+  vurulmuYanlislar = 0;
+
+  // 4 varil oluştur
+  const items = shuffle([
+    {word: target1[1], isYanlis: true},   // yanlış yazım
+    {word: target2[1], isYanlis: true},   // yanlış yazım
+    {word: dist[0][0], isYanlis: false},  // doğru yazım
+    {word: dist[1][0], isYanlis: false},  // doğru yazım
+  ]);
+
+  const spacing = W / (VARIL_COUNT + 1);
+  variller = items.map((item, i) => ({
+    x: spacing * (i+1),
+    y: YERDEN,
+    word: item.word,
+    isYanlis: item.isYanlis,
+    hit: false,
+    wobble: 0,
+  }));
+}
+
+function shuffle(arr){
+  const a = [...arr];
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+function resetGame(){
+  skor=0; yanlis=0; seviye=1; setCounter=0;
+  usedPairKeys.clear(); historyPool=[]; reviewPair=null;
+  mermi=null; patlama=null; particles=[];
+  heli.x=W/2; heli.vx=1.2; heli.shake=0;
+  gameOver=false; showStart=false;
+  vurulmuYanlislar=0;
+  buildSet();
+  updateHUD();
+  if(animId) cancelAnimationFrame(animId);
+  animId = requestAnimationFrame(loop);
+}
+
+// ── INPUT ─────────────────────────────────────────────────────────────────────
+canvas.addEventListener('click', e=>{
+  if(showStart || gameOver){ resetGame(); return; }
+  if(mermi) return; // already fired
+
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (W / rect.width);
+
+  // fire from heli toward nearest barrel under click X
+  // find which barrel is nearest to click
+  let best = null, bestDist = Infinity;
+  for(const v of variller){
+    if(v.hit) continue;
+    const d = Math.abs(v.x - mx);
+    if(d < bestDist){ bestDist=d; best=v; }
+  }
+  if(!best) return;
+
+  mermi = {
+    x: heli.x, y: HELI_Y + 30,
+    tx: best.x, ty: best.y - VARIL_H/2,
+    target: best,
+    progress: 0
+  };
+});
+
+canvas.addEventListener('keydown', e=>{
+  if(e.key===' ' || e.key==='Enter') canvas.click();
+});
+canvas.tabIndex=0;
+
+// Mobile touch
+canvas.addEventListener('touchstart', e=>{
+  e.preventDefault();
+  const t=e.touches[0];
+  canvas.dispatchEvent(new MouseEvent('click',{clientX:t.clientX,clientY:t.clientY,bubbles:true}));
+},{passive:false});
+
+// ── LOOP ──────────────────────────────────────────────────────────────────────
+function loop(){
+  update();
+  draw();
+  if(!gameOver) animId = requestAnimationFrame(loop);
+}
+
+function update(){
+  // heli movement
+  heli.x += heli.vx * (1 + seviye*0.15);
+  if(heli.x > W - 60) heli.vx = -Math.abs(heli.vx);
+  if(heli.x < 60)     heli.vx =  Math.abs(heli.vx);
+  heli.rotorAngle += 0.25;
+  if(heli.shake > 0) heli.shake -= 0.5;
+
+  // barrel wobble decay
+  variller.forEach(v=>{ if(v.wobble>0) v.wobble*=0.85; });
+
+  // mermi
+  if(mermi){
+    mermi.progress += 0.045 + seviye*0.008;
+    mermi.x = heli.x + (mermi.tx - heli.x) * mermi.progress;
+    mermi.y = (HELI_Y+30) + (mermi.ty - (HELI_Y+30)) * mermi.progress;
+
+    if(mermi.progress >= 1){
+      const v = mermi.target;
+      if(!v.hit){
+        v.hit = true;
+        if(v.isYanlis){
+          // DOĞRU HIT — yanlış yazılmış varili vurdu
+          vurulmuYanlislar++;
+          const bonus = 10 + seviye*2;
+          skor += bonus;
+          seviye = Math.floor(skor/100)+1;
+          spawnParticles(v.x, v.y, '#22d3ee', 28);
+          playCorrect();
+          if(vurulmuYanlislar >= 2){
+            // Her iki yanlışı da vurdu → TÜM SET değişir
+            setCounter++;
+            const isReview = setCounter % 5 === 0 && historyPool.length >= 5;
+            const msg = isReview
+              ? `+${bonus} Set ${setCounter}! 🔄 Tekrar sorusu geliyor...`
+              : `+${bonus} Set Tamamlandı! 🎯`;
+            showFlash(msg,'#4ade80');
+            setTimeout(()=>{ if(!gameOver){ buildSet(); mermi=null; } },700);
+          } else {
+            showFlash(`+${bonus} Doğru! 1 tane daha! ✓`,'#4ade80');
+            setTimeout(()=>{ if(!gameOver){ mermi=null; } },400);
+          }
+        } else {
+          // YANLIŞ HIT — doğru yazılmış varili vurdu
+          yanlis++;
+          v.wobble = 8;
+          heli.shake = 10;
+          spawnParticles(v.x, v.y, '#ef4444', 22);
+          playWrong();
+          if(yanlis >= 3){
+            showFlash('3 Yanlış! Oyun Bitti 💥','#ef4444');
+            setTimeout(()=>{ endGame(); },900);
+          } else {
+            showFlash('Yanlış! Bu doğru yazım! ('+yanlis+'/3)','#f87171');
+            setTimeout(()=>{ if(!gameOver){ mermi=null; } },500);
+          }
+        }
+        updateHUD();
+      }
+      if(v.hit && mermi) mermi=null;
+    }
+  }
+
+  // particles
+  particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=0.18; p.life-=1; p.r*=0.96; });
+  particles = particles.filter(p=>p.life>0);
+
+  // flash msg
+  if(flashMsg.timer>0) flashMsg.timer--;
+}
+
+function spawnParticles(x,y,col,n){
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2, s=1.5+Math.random()*3;
+    particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-2,life:28+Math.random()*18,r:3+Math.random()*4,col});
+  }
+}
+
+function showFlash(text, color){
+  flashMsg = { text, color, timer: 70 };
+}
+
+function updateHUD(){
+  document.getElementById('skor').textContent=skor;
+  document.getElementById('yanlis').textContent=yanlis;
+  document.getElementById('seviye').textContent=seviye;
+  const setEl = document.getElementById('setno');
+  if(setEl) setEl.textContent=setCounter+1;
+}
+
+function endGame(){
+  gameOver=true;
+  cancelAnimationFrame(animId);
+  drawGameOver();
+}
+
+// ── DRAW ──────────────────────────────────────────────────────────────────────
+function draw(){
+  // açık gökyüzü
+  const sky=ctx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,'#c8e8ff'); sky.addColorStop(0.6,'#dff0ff'); sky.addColorStop(1,'#b8d88a');
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
+
+  drawClouds();
+  drawGround();
+  drawVariller();
+  drawHeli();
+  drawMermi();
+  drawParticles();
+  drawHeliBubble();
+  drawFlash();
+
+  if(showStart) drawStart();
+}
+
+function drawClouds(){
+  ctx.fillStyle='rgba(255,255,255,0.75)';
+  [[90,55,55,22],[240,40,75,28],[420,62,65,24],[560,45,50,20]].forEach(([x,y,w,h])=>{
+    ctx.beginPath(); ctx.ellipse(x,y,w,h,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x+w*0.5,y-h*0.4,w*0.6,h*0.75,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x-w*0.4,y-h*0.2,w*0.5,h*0.65,0,0,Math.PI*2); ctx.fill();
+  });
+}
+
+function drawGround(){
+  ctx.fillStyle='#6ab04c';
+  ctx.fillRect(0, H-80, W, 80);
+  ctx.fillStyle='#8B7355';
+  ctx.fillRect(0, H-65, W, 50);
+  ctx.setLineDash([30,20]);
+  ctx.strokeStyle='rgba(255,255,220,0.5)'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(0,H-42); ctx.lineTo(W,H-42); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawVariller(){
+  variller.forEach(v=>{
+    if(v.hit && v.isYanlis) return;
+
+    const ox = v.wobble ? Math.sin(Date.now()*0.05)*v.wobble : 0;
+    const x = v.x + ox, y = v.y;
+
+    ctx.save();
+    ctx.translate(x, y);
+
+    // shadow
+    ctx.fillStyle='rgba(0,0,0,0.18)';
+    ctx.beginPath(); ctx.ellipse(0,VARIL_H/2+3,VARIL_W*0.42,7,0,0,Math.PI*2); ctx.fill();
+
+    // barrel body
+    const g=ctx.createLinearGradient(-VARIL_W/2,0,VARIL_W/2,0);
+    let bc, bc2;
+    if(v.hit){ bc='#8a9aaa'; bc2='#6a7a8a'; }
+    else      { bc='#5a6e82'; bc2='#3d5265'; }
+    g.addColorStop(0,bc2); g.addColorStop(0.25,bc); g.addColorStop(0.75,bc); g.addColorStop(1,bc2);
+    ctx.fillStyle=g;
+    ctx.beginPath();
+    ctx.roundRect(-VARIL_W/2, -VARIL_H/2, VARIL_W, VARIL_H, [10,10,5,5]);
+    ctx.fill();
+
+    // metal bands
+    ctx.strokeStyle=v.hit?'#aaa':'#2a3d52'; ctx.lineWidth=6;
+    [-VARIL_H*0.3, 0, VARIL_H*0.3].forEach(oy=>{
+      ctx.beginPath(); ctx.moveTo(-VARIL_W/2+4,oy); ctx.lineTo(VARIL_W/2-4,oy); ctx.stroke();
+    });
+
+    // barrel top rim
+    ctx.fillStyle=v.hit?'#7a8a9a':'#4a5e72';
+    ctx.beginPath(); ctx.ellipse(0,-VARIL_H/2,VARIL_W/2,8,0,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle=v.hit?'#999':'#3a4e62'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.ellipse(0,-VARIL_H/2,VARIL_W/2,8,0,0,Math.PI*2); ctx.stroke();
+
+    // highlight stripe
+    ctx.fillStyle='rgba(255,255,255,0.09)';
+    ctx.fillRect(-VARIL_W/2+6,-VARIL_H/2+10,14,VARIL_H-18);
+
+    // ── KELIME ETİKETİ ──
+    // Beyaz arka planlı etiket kutucuğu — varil içine tamamen sığar
+    const lblH = 46, lblW = VARIL_W - 16;
+    const lblY = -lblH/2 + 2;
+    ctx.fillStyle='rgba(255,255,255,0.92)';
+    ctx.beginPath(); ctx.roundRect(-lblW/2, lblY, lblW, lblH, 6); ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,0.12)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.roundRect(-lblW/2, lblY, lblW, lblH, 6); ctx.stroke();
+
+    // Kelimeyi akıllıca iki satıra böl
+    ctx.fillStyle='#1a2744';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    const word = v.word;
+    const lines = splitWord(ctx, word, lblW - 10, 13);
+    const lineH = 16;
+    const totalH = lines.length * lineH;
+    lines.forEach((line, i)=>{
+      const fs = line.length > 14 ? 11 : line.length > 10 ? 12 : 13;
+      ctx.font=`bold ${fs}px Segoe UI`;
+      ctx.fillText(line, 0, lblY + lblH/2 - totalH/2 + i*lineH + lineH/2);
+    });
+
+    ctx.restore();
+  });
+}
+
+// Kelimeyi maksimum genişliğe sığacak şekilde satırlara böl
+function splitWord(ctx, word, maxW, fontSize){
+  ctx.font=`bold ${fontSize}px Segoe UI`;
+  if(ctx.measureText(word).width <= maxW) return [word];
+  // boşluktan böl
+  const spIdx = word.indexOf(' ');
+  if(spIdx > 0){
+    return [word.slice(0,spIdx), word.slice(spIdx+1)];
+  }
+  // boşluk yoksa ortadan böl
+  const mid = Math.ceil(word.length/2);
+  return [word.slice(0,mid)+'-', word.slice(mid)];
+}
+
+function drawHeli(){
+  const sx = heli.shake>0 ? (Math.random()-0.5)*heli.shake*0.6 : 0;
+  const sy = heli.shake>0 ? (Math.random()-0.5)*heli.shake*0.3 : 0;
+  const x = heli.x + sx;
+  const y = HELI_Y + sy;
+
+  ctx.save();
+  ctx.translate(x, y);
+
+  // ── ground shadow ──
+  ctx.fillStyle='rgba(0,0,0,0.18)';
+  ctx.beginPath(); ctx.ellipse(4, H-y-20, 48, 7, 0, 0, Math.PI*2); ctx.fill();
+
+  // ── TAIL BOOM ──
+  const tailG = ctx.createLinearGradient(30,30,110,46);
+  tailG.addColorStop(0,'#4a5568'); tailG.addColorStop(0.5,'#718096'); tailG.addColorStop(1,'#2d3748');
+  ctx.fillStyle = tailG;
+  ctx.beginPath();
+  ctx.moveTo(34, 33); ctx.lineTo(108, 25); ctx.lineTo(108, 38); ctx.lineTo(34, 48);
+  ctx.closePath(); ctx.fill();
+  // tail boom rivet line
+  ctx.strokeStyle='rgba(0,0,0,0.25)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(40,40); ctx.lineTo(106,32); ctx.stroke();
+
+  // ── TAIL FIN ──
+  ctx.fillStyle='#2d3748';
+  ctx.beginPath();
+  ctx.moveTo(100,14); ctx.lineTo(112,14); ctx.lineTo(112,28); ctx.lineTo(100,28);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#4a5568';
+  ctx.fillRect(108,16,3,10);
+
+  // ── TAIL ROTOR ──
+  ctx.save(); ctx.translate(112, 21);
+  // hub
+  ctx.fillStyle='#555'; ctx.beginPath(); ctx.arc(0,0,4,0,Math.PI*2); ctx.fill();
+  ctx.save(); ctx.rotate(heli.rotorAngle * 2.1);
+  // blades — 3 blade tail rotor
+  for(let i=0;i<3;i++){
+    ctx.rotate(Math.PI*2/3);
+    const tg=ctx.createLinearGradient(0,0,0,16);
+    tg.addColorStop(0,'#718096'); tg.addColorStop(1,'#2d3748');
+    ctx.fillStyle=tg;
+    ctx.fillRect(-2,0,4,14);
+  }
+  ctx.restore();
+  ctx.fillStyle='#888'; ctx.beginPath(); ctx.arc(0,0,3,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // ── MAIN BODY ──
+  // dark olive-green military feel
+  const bodyG=ctx.createLinearGradient(-44,8,44,58);
+  bodyG.addColorStop(0,'#4a5c3a');
+  bodyG.addColorStop(0.3,'#5d7347');
+  bodyG.addColorStop(0.65,'#4a5c3a');
+  bodyG.addColorStop(1,'#2e3d24');
+  ctx.fillStyle=bodyG;
+  ctx.beginPath();
+  ctx.moveTo(-42,30);
+  ctx.bezierCurveTo(-52,28,-52,14,-38,12);
+  ctx.lineTo(-18,8); ctx.lineTo(26,8);
+  ctx.bezierCurveTo(44,8,48,16,46,26);
+  ctx.lineTo(44,50); ctx.bezierCurveTo(44,58,36,60,26,60);
+  ctx.lineTo(-28,60); ctx.bezierCurveTo(-46,60,-50,52,-42,44);
+  ctx.closePath(); ctx.fill();
+
+  // panel line (body centre seam)
+  ctx.strokeStyle='rgba(0,0,0,0.3)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(-38,34); ctx.lineTo(38,34); ctx.stroke();
+
+  // body highlight top
+  const bodyHi=ctx.createLinearGradient(0,8,0,28);
+  bodyHi.addColorStop(0,'rgba(255,255,255,0.12)'); bodyHi.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=bodyHi;
+  ctx.beginPath();
+  ctx.ellipse(0,20,36,12,0,0,Math.PI*2); ctx.fill();
+
+  // ── COCKPIT BUBBLE ──
+  // outer frame
+  ctx.fillStyle='#2d3748';
+  ctx.beginPath();
+  ctx.moveTo(-22,12); ctx.bezierCurveTo(-36,14,-40,36,-30,56);
+  ctx.lineTo(22,56); ctx.bezierCurveTo(32,36,28,14,14,12);
+  ctx.closePath(); ctx.fill();
+  // glass
+  const glassG=ctx.createLinearGradient(-20,14,18,52);
+  glassG.addColorStop(0,'rgba(160,220,255,0.72)');
+  glassG.addColorStop(0.4,'rgba(100,190,240,0.55)');
+  glassG.addColorStop(1,'rgba(40,80,140,0.65)');
+  ctx.fillStyle=glassG;
+  ctx.beginPath();
+  ctx.moveTo(-18,15); ctx.bezierCurveTo(-30,17,-34,36,-26,54);
+  ctx.lineTo(18,54); ctx.bezierCurveTo(26,36,22,17,10,15);
+  ctx.closePath(); ctx.fill();
+  // glass glare
+  ctx.fillStyle='rgba(255,255,255,0.28)';
+  ctx.beginPath();
+  ctx.moveTo(-12,18); ctx.bezierCurveTo(-22,22,-24,36,-18,46);
+  ctx.lineTo(-8,30); ctx.bezierCurveTo(-4,22,-2,18,-12,18);
+  ctx.closePath(); ctx.fill();
+  // cockpit frame lines
+  ctx.strokeStyle='rgba(0,0,0,0.4)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(-4,14); ctx.lineTo(-4,55); ctx.stroke();
+
+  // ── PILOT SILHOUETTE ──
+  ctx.fillStyle='rgba(10,20,40,0.5)';
+  ctx.beginPath(); ctx.ellipse(-4,36,9,11,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-4,24,6,0,Math.PI*2); ctx.fill();
+
+  // ── SKIDS ──
+  // left strut
+  ctx.strokeStyle='#3a3a3a'; ctx.lineWidth=3; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-28,58); ctx.lineTo(-28,72); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(8,58); ctx.lineTo(8,72); ctx.stroke();
+  // left skid rail
+  ctx.lineWidth=3.5;
+  ctx.strokeStyle='#555';
+  ctx.beginPath(); ctx.moveTo(-38,72); ctx.lineTo(18,72); ctx.stroke();
+  // right strut
+  ctx.strokeStyle='#3a3a3a'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(-10,58); ctx.lineTo(-10,80); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(24,58); ctx.lineTo(24,80); ctx.stroke();
+  // right skid rail
+  ctx.strokeStyle='#555'; ctx.lineWidth=3.5;
+  ctx.beginPath(); ctx.moveTo(-20,80); ctx.lineTo(34,80); ctx.stroke();
+  // cross braces
+  ctx.strokeStyle='rgba(80,80,80,0.8)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(-28,58); ctx.lineTo(-10,80); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(8,58); ctx.lineTo(24,80); ctx.stroke();
+
+  // ── MAIN ROTOR MAST ──
+  ctx.fillStyle='#333';
+  ctx.fillRect(-4,0,8,12);
+  ctx.fillStyle='#555';
+  ctx.fillRect(-6,3,12,4);
+
+  // ── MAIN ROTOR ──
+  ctx.save(); ctx.translate(0,3); ctx.rotate(heli.rotorAngle);
+  const numBlades=3;
+  for(let i=0;i<numBlades;i++){
+    ctx.rotate(Math.PI*2/numBlades);
+    ctx.save();
+    // blade shape — tapered
+    ctx.beginPath();
+    ctx.moveTo(-3,0); ctx.lineTo(-1,-68); ctx.lineTo(1,-68); ctx.lineTo(3,0);
+    ctx.closePath();
+    const bladeG=ctx.createLinearGradient(0,0,0,-68);
+    bladeG.addColorStop(0,'#4a4a3a');
+    bladeG.addColorStop(0.5,'#6a6a5a');
+    bladeG.addColorStop(1,'#3a3a2a');
+    ctx.fillStyle=bladeG;
+    ctx.fill();
+    // blade edge highlight
+    ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.lineWidth=0.5;
+    ctx.stroke();
+    ctx.restore();
+  }
+  // hub centre disk
+  const hubG=ctx.createRadialGradient(0,0,1,0,0,8);
+  hubG.addColorStop(0,'#aaa'); hubG.addColorStop(1,'#444');
+  ctx.fillStyle=hubG;
+  ctx.beginPath(); ctx.arc(0,0,8,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#222';
+  ctx.beginPath(); ctx.arc(0,0,3,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // ── NAVIGATION LIGHTS ──
+  // red left
+  ctx.fillStyle=`rgba(255,60,60,${0.5+Math.sin(Date.now()*0.006)*0.5})`;
+  ctx.shadowColor='#f00'; ctx.shadowBlur=8;
+  ctx.beginPath(); ctx.arc(-42,32,3,0,Math.PI*2); ctx.fill();
+  // green right
+  ctx.fillStyle=`rgba(60,255,100,${0.5+Math.sin(Date.now()*0.006+Math.PI)*0.5})`;
+  ctx.shadowColor='#0f0'; ctx.shadowBlur=8;
+  ctx.beginPath(); ctx.arc(38,32,3,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+
+  ctx.restore();
+}
+
+function drawHeliBubble(){
+  if(showStart || gameOver) return;
+  const x = heli.x, y = HELI_Y;
+  const bx = x, by = y + 72;
+  const bw2 = 108, bh2 = 22;
+
+  ctx.save();
+  ctx.translate(bx, by);
+
+  // tail
+  ctx.fillStyle='rgba(255,60,60,0.92)';
+  ctx.beginPath();
+  ctx.moveTo(-8,-bh2); ctx.lineTo(0,-bh2-12); ctx.lineTo(8,-bh2); ctx.closePath(); ctx.fill();
+
+  // box
+  ctx.beginPath(); ctx.roundRect(-bw2,-bh2,bw2*2,bh2*2,10); ctx.fill();
+  ctx.strokeStyle='rgba(180,30,30,0.6)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.roundRect(-bw2,-bh2,bw2*2,bh2*2,10); ctx.stroke();
+
+  // set sayacı
+  ctx.fillStyle='rgba(255,220,220,0.7)';
+  ctx.font='bold 8px Segoe UI';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(`SET ${setCounter+1}`, 0, -bh2+8);
+
+  // ana mesaj
+  ctx.fillStyle='#fff';
+  ctx.font='bold 12px Segoe UI';
+  ctx.fillText('YANLIŞ YAZILAN 2 KELİMEYİ VUR!', 0, 3);
+
+  // alt ipucu
+  ctx.fillStyle='rgba(255,220,220,0.75)';
+  ctx.font='8px Segoe UI';
+  ctx.fillText('Her sette 2 yanlış var', 0, bh2-6);
+
+  ctx.restore();
+}
+
+function drawMermi(){
+  if(!mermi) return;
+  ctx.save();
+  // trail
+  ctx.globalAlpha=0.3;
+  ctx.strokeStyle='#fbbf24'; ctx.lineWidth=2; ctx.setLineDash([4,4]);
+  ctx.beginPath();
+  ctx.moveTo(heli.x, HELI_Y+30);
+  ctx.lineTo(mermi.x, mermi.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha=1;
+  // bullet
+  ctx.fillStyle='#fbbf24';
+  ctx.shadowColor='#fbbf24'; ctx.shadowBlur=8;
+  ctx.beginPath(); ctx.arc(mermi.x, mermi.y, 5, 0, Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.restore();
+}
+
+function drawParticles(){
+  particles.forEach(p=>{
+    ctx.globalAlpha=p.life/40;
+    ctx.fillStyle=p.col;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha=1;
+}
+
+function drawFlash(){
+  if(flashMsg.timer<=0) return;
+  const alpha=Math.min(flashMsg.timer/20,1);
+  ctx.globalAlpha=alpha;
+  ctx.fillStyle=flashMsg.color;
+  ctx.font='bold 26px Segoe UI';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.shadowColor=flashMsg.color; ctx.shadowBlur=16;
+  ctx.fillText(flashMsg.text, W/2, H/2-20);
+  ctx.shadowBlur=0;
+  ctx.globalAlpha=1;
+}
+
+function drawStart(){
+  ctx.fillStyle='rgba(10,30,70,0.85)';
+  ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+
+  ctx.fillStyle='#fbbf24';
+  ctx.font='bold 32px Segoe UI';
+  ctx.fillText('🚁 Yazım Helikopter',W/2,H/2-95);
+
+  ctx.fillStyle='#aac4ff';
+  ctx.font='14px Segoe UI';
+  ctx.fillText('Varillerdeki 4 kelimeden 2\'si YANLIŞ yazılmış.',W/2,H/2-58);
+  ctx.fillText('Yanlış yazılanları bul ve vur! Doğruya vurursan ceza.',W/2,H/2-35);
+  ctx.fillText('Her 5 sette bir, önceki setlerden 1 kelime geri döner.',W/2,H/2-12);
+
+  ctx.fillStyle='#fca5a5';
+  ctx.font='13px Segoe UI';
+  ctx.fillText('3 yanlış → oyun sıfırlanır',W/2,H/2+12);
+
+  ctx.fillStyle='rgba(255,255,255,0.9)';
+  ctx.font='bold 16px Segoe UI';
+  ctx.fillText('▶  Başlamak için tıkla / dokun',W/2,H/2+52);
+}
+
+function drawGameOver(){
+  ctx.fillStyle='rgba(5,10,30,0.88)';
+  ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+
+  ctx.fillStyle='#ef4444';
+  ctx.font='bold 38px Segoe UI';
+  ctx.shadowColor='#ef4444'; ctx.shadowBlur=20;
+  ctx.fillText('OYUN BİTTİ!',W/2,H/2-70);
+  ctx.shadowBlur=0;
+
+  ctx.fillStyle='#fbbf24';
+  ctx.font='bold 22px Segoe UI';
+  ctx.fillText('Skor: '+skor,W/2,H/2-20);
+  ctx.fillStyle='#aac4ff';
+  ctx.font='15px Segoe UI';
+  ctx.fillText('Set: '+setCounter+' | Seviye: '+seviye+' | Yanlış: 3/3',W/2,H/2+16);
+
+  ctx.fillStyle='rgba(255,255,255,0.8)';
+  ctx.font='bold 15px Segoe UI';
+  ctx.fillText('▶  Tekrar oynamak için tıkla',W/2,H/2+60);
+}
+
+// ── FIRST DRAW ────────────────────────────────────────────────────────────────
+draw();
+requestAnimationFrame(loop);
+// stop loop until click
+cancelAnimationFrame(animId);
+gameOver=true; // treated as "not running"
+// kick off idle animation
+function idle(){
+  heli.x += heli.vx*(1.1);
+  if(heli.x>W-60) heli.vx=-Math.abs(heli.vx);
+  if(heli.x<60)   heli.vx= Math.abs(heli.vx);
+  heli.rotorAngle+=0.25;
+  draw();
+  if(showStart) requestAnimationFrame(idle);
+}
+idle();
+</script>
+</body>
+</html>
