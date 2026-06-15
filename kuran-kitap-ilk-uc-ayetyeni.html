@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>Kur'an Sure Tanıma</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+
+html,body{
+  height:100%;
+  width:100%;
+  overflow:hidden;
+  font-family:'Segoe UI','Tahoma',serif;
+  background:#0a1f10;
+}
+
+/* ══ ANA ÇERÇEVE: ekranın %95'i ══ */
+.frame{
+  position:fixed;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:2vh 2vw;
+}
+
+/* ══ KİTAP SAYFASI ══ */
+.page{
+  width:100%;
+  height:95vh;
+  max-width:860px;
+  background:linear-gradient(160deg,#fdf6e0 0%,#f4e8c0 55%,#ecdba0 100%);
+  border-radius:4px 18px 18px 4px;
+  box-shadow:
+    -8px 0 0 #b8920a,        /* sol cilt şeridi */
+    0 0 0 3px #c9a520,       /* altın kenar */
+    8px 14px 60px rgba(0,0,0,.65),
+    -2px 2px 20px rgba(0,0,0,.3);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  position:relative;
+}
+
+/* Sayfa çizgi dokusu */
+.page::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background-image:repeating-linear-gradient(
+    transparent,
+    transparent 39px,
+    rgba(160,130,40,.13) 39px,
+    rgba(160,130,40,.13) 40px
+  );
+  pointer-events:none;
+  z-index:0;
+}
+
+/* Sol kenar kırmızı çizgi (klasik defter) */
+.page::after{
+  content:'';
+  position:absolute;
+  top:0; bottom:0; left:52px;
+  width:1.5px;
+  background:rgba(200,80,60,.25);
+  z-index:1;
+}
+
+/* ══ ÜST BAR: HUD + Dinle ══ */
+.top-bar{
+  position:relative;
+  z-index:2;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 18px 8px 20px;
+  border-bottom:1.5px solid rgba(160,130,40,.25);
+  background:rgba(255,248,220,.55);
+  flex-shrink:0;
+  flex-wrap:wrap;
+  gap:6px;
+}
+
+.hud-left{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.hud-chip{
+  background:rgba(80,50,5,.08);
+  border:1px solid rgba(160,120,20,.3);
+  border-radius:30px;
+  padding:3px 12px;
+  font-size:.78rem;
+  font-weight:700;
+  color:#4a3205;
+}
+.score-chip{
+  background:#1a4f2e;
+  color:#c8f0a0;
+  border:1px solid #2a7040;
+}
+
+.hud-right{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.listen-btn{
+  background:#2a6040;
+  border:none;
+  color:#e0f8d0;
+  font-size:.8rem;
+  padding:6px 14px;
+  border-radius:30px;
+  cursor:pointer;
+  font-weight:700;
+  font-family:inherit;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  transition:.15s;
+  box-shadow:0 2px 6px rgba(0,0,0,.2);
+}
+.listen-btn:hover{background:#3a8050;}
+.listen-btn:active{transform:scale(.96);}
+
+.reset-btn{
+  background:transparent;
+  border:1px solid rgba(160,120,20,.4);
+  color:#6a4a08;
+  border-radius:30px;
+  padding:5px 12px;
+  font-size:.76rem;
+  cursor:pointer;
+  font-family:inherit;
+  font-weight:700;
+  transition:.15s;
+}
+.reset-btn:hover{background:rgba(160,120,20,.12);}
+
+/* ══ KİTAP İÇ ALANI ══ */
+.page-body{
+  position:relative;
+  z-index:2;
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  padding:0 20px 12px 60px; /* sol kırmızı çizginin sağı */
+  overflow:hidden;
+  min-height:0;
+}
+
+/* ══ ARAPÇA METİN ALANI (büyük, %55 yükseklik) ══ */
+.arabic-section{
+  flex:0 0 auto;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  padding:16px 8px 12px 0;
+  border-bottom:1.5px solid rgba(160,130,40,.22);
+  min-height:0;
+}
+
+.sure-label{
+  font-size:.72rem;
+  font-weight:700;
+  color:#8a6520;
+  letter-spacing:.8px;
+  text-transform:uppercase;
+  margin-bottom:12px;
+  opacity:.8;
+}
+
+.arabic-text{
+  direction:rtl;
+  font-family:'Amiri','Traditional Arabic','Scheherazade New','Times New Roman',serif;
+  color:#1a2010;
+  text-align:right;
+  line-height:1.8;
+}
+
+.ayet-line{
+  display:block;
+  margin-bottom:6px;
+  padding-bottom:6px;
+  border-bottom:1px solid rgba(160,130,40,.12);
+}
+.ayet-line:last-child{
+  border-bottom:none;
+  margin-bottom:0;
+}
+
+/* ══ SORU + SEÇENEKLER ALANI ══ */
+.question-section{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  padding:14px 0 8px;
+  min-height:0;
+  overflow:hidden;
+}
+
+.question-label{
+  font-size:.8rem;
+  font-weight:700;
+  color:#6a4a08;
+  margin-bottom:10px;
+  opacity:.85;
+}
+
+.options{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  overflow-y:auto;
+  padding-right:4px;
+}
+
+.opt-btn{
+  background:rgba(30,60,20,.85);
+  border:1.5px solid rgba(80,160,60,.45);
+  border-radius:50px;
+  padding:0;
+  font-size:1rem;
+  font-weight:800;
+  color:#c8f0a0;
+  cursor:pointer;
+  text-align:center;
+  transition:.15s;
+  font-family:inherit;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:44px;
+  padding:10px 18px;
+  flex-shrink:0;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+}
+.opt-btn:hover:not([disabled]){
+  background:rgba(40,90,25,.95);
+  border-color:rgba(120,220,80,.7);
+  color:#e8ffe0;
+}
+.opt-correct{
+  background:#1a5230 !important;
+  border-color:#5ec87a !important;
+  color:#d0ffd0 !important;
+  letter-spacing:1.5px;
+}
+.opt-wrong{
+  background:#6b1f12 !important;
+  border-color:#e07060 !important;
+  color:#ffd8d0 !important;
+  text-decoration:line-through;
+  letter-spacing:1.5px;
+}
+.opt-btn[disabled]{cursor:default;}
+
+/* ══ ALT BİLGİ SATIRI ══ */
+.bottom-bar{
+  position:relative;
+  z-index:2;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 18px 10px 60px;
+  border-top:1.5px solid rgba(160,130,40,.22);
+  background:rgba(255,248,220,.4);
+  flex-shrink:0;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.feedback{
+  font-size:.82rem;
+  font-weight:600;
+  color:#5a3e08;
+  flex:1;
+  min-width:0;
+}
+
+.next-btn{
+  background:linear-gradient(135deg,#9e6610,#c8900c);
+  border:none;
+  padding:8px 22px;
+  font-size:.88rem;
+  font-weight:800;
+  border-radius:40px;
+  color:#fff8e0;
+  cursor:pointer;
+  font-family:inherit;
+  letter-spacing:.3px;
+  box-shadow:0 3px 0 #6a4408, 0 4px 12px rgba(0,0,0,.25);
+  transition:.12s;
+  white-space:nowrap;
+  flex-shrink:0;
+}
+.next-btn:hover{background:linear-gradient(135deg,#b87812,#e0a814);}
+.next-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #6a4408;}
+.next-btn:disabled{opacity:.45;cursor:not-allowed;transform:none;}
+
+/* ══ FONT BOYUTU HESAPLAMA: container yüksekliğine göre ══ */
+/* Büyük ekran */
+@media(min-height:700px){
+  .arabic-text{ font-size:clamp(1.4rem,3.2vh,2.2rem); }
+  .arabic-section{ flex: 0 0 52%; }
+}
+/* Orta ekran */
+@media(max-height:699px) and (min-height:500px){
+  .arabic-text{ font-size:clamp(1.1rem,2.8vh,1.7rem); }
+  .arabic-section{ flex: 0 0 48%; }
+}
+/* Küçük ekran */
+@media(max-height:499px){
+  .arabic-text{ font-size:1rem; line-height:1.6; }
+  .arabic-section{ flex: 0 0 44%; }
+  .opt-btn{ min-height:36px; font-size:.85rem; }
+}
+
+/* Geniş ekranlarda yatay padding artır */
+@media(min-width:600px){
+  .page-body{ padding-left:70px; padding-right:28px; }
+}
+</style>
+</head>
+<body>
+
+<div class="frame">
+<div class="page">
+
+  <!-- ÜST BAR -->
+  <div class="top-bar">
+    <div class="hud-left">
+      <div class="hud-chip">📖 Soru <span id="qNum">1</span>/<span id="qTotal">10</span></div>
+      <div class="hud-chip score-chip">⭐ <span id="scoreNum">0</span> puan</div>
+    </div>
+    <div class="hud-right">
+      <button class="listen-btn" id="listenBtn">🔊 Sesli Dinle</button>
+      <button class="reset-btn" id="resetBtn">🔄 Yeni Set</button>
+    </div>
+  </div>
+
+  <!-- KİTAP GÖVDE -->
+  <div class="page-body">
+
+    <!-- ARAPÇA ALAN -->
+    <div class="arabic-section">
+      <div class="sure-label" id="sureLabel">✨ İlk 3 Ayet · Arapça</div>
+      <div class="arabic-text" id="arabicVerses"></div>
+    </div>
+
+    <!-- SORU + SEÇENEKLER -->
+    <div class="question-section">
+      <div class="question-label">🌙 Bu hangi sure?</div>
+      <div class="options" id="optionsContainer"></div>
+    </div>
+
+  </div><!-- /page-body -->
+
+  <!-- ALT BAR -->
+  <div class="bottom-bar">
+    <div class="feedback" id="feedbackMsg">💡 Bir cevap seçin</div>
+    <button class="next-btn" id="nextBtn">⏩ Sonraki</button>
+  </div>
+
+</div><!-- /page -->
+</div><!-- /frame -->
+
+<script>
+// ── VERİTABANI ───────────────────────────────────────────────────────────────
+const DB = [
+  {id:1,  name:"Fatiha",      ar:"بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ|الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ|الرَّحْمَـٰنِ الرَّحِيمِ"},
+  {id:2,  name:"Bakara",      ar:"الٓمٓ|ذَٰلِكَ الْكِتَابُ لَا رَيْبَ فِيهِ هُدًى لِّلْمُتَّقِينَ|الَّذِينَ يُؤْمِنُونَ بِالْغَيْبِ وَيُقِيمُونَ الصَّلَاةَ وَمِمَّا رَزَقْنَاهُمْ يُنفِقُونَ"},
+  {id:3,  name:"Âl-i İmrân", ar:"الٓمٓ|اللَّهُ لَا إِلَـٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ|نَزَّلَ عَلَيْكَ الْكِتَابَ بِالْحَقِّ مُصَدِّقًا لِّمَا بَيْنَ يَدَيْهِ وَأَنزَلَ التَّوْرَاةَ وَالْإِنجِيلَ"},
+  {id:4,  name:"Nisâ",        ar:"يَا أَيُّهَا النَّاسُ اتَّقُوا رَبَّكُمُ الَّذِي خَلَقَكُم مِّن نَّفْسٍ وَاحِدَةٍ|وَآتُوا الْيَتَامَىٰ أَمْوَالَهُمْ|وَإِنْ خِفْتُمْ أَلَّا تُقْسِطُوا فِي الْيَتَامَىٰ"},
+  {id:5,  name:"Mâide",       ar:"يَا أَيُّهَا الَّذِينَ آمَنُوا أَوْفُوا بِالْعُقُودِ|يَا أَيُّهَا الَّذِينَ آمَنُوا لَا تُحِلُّوا شَعَائِرَ اللَّهِ|حُرِّمَتْ عَلَيْكُمُ الْمَيْتَةُ وَالدَّمُ"},
+  {id:6,  name:"En'âm",       ar:"الْحَمْدُ لِلَّهِ الَّذِي خَلَقَ السَّمَاوَاتِ وَالْأَرْضَ|هُوَ الَّذِي خَلَقَكُم مِّن طِينٍ|وَهُوَ اللَّهُ فِي السَّمَاوَاتِ وَفِي الْأَرْضِ"},
+  {id:7,  name:"A'râf",       ar:"الٓمٓصٓ|كِتَابٌ أُنزِلَ إِلَيْكَ فَلَا يَكُن فِي صَدْرِكَ حَرَجٌ|اتَّبِعُوا مَا أُنزِلَ إِلَيْكُم مِّن رَّبِّكُمْ"},
+  {id:8,  name:"Enfâl",       ar:"يَسْأَلُونَكَ عَنِ الْأَنفَالِ|إِنَّمَا الْمُؤْمِنُونَ الَّذِينَ إِذَا ذُكِرَ اللَّهُ وَجِلَتْ قُلُوبُهُمْ|الَّذِينَ يُقِيمُونَ الصَّلَاةَ"},
+  {id:9,  name:"Tevbe",       ar:"بَرَاءَةٌ مِّنَ اللَّهِ وَرَسُولِهِ|فَسِيحُوا فِي الْأَرْضِ أَرْبَعَةَ أَشْهُرٍ|وَأَذَانٌ مِّنَ اللَّهِ وَرَسُولِهِ"},
+  {id:10, name:"Yûnus",       ar:"الٓر ۚ تِلْكَ آيَاتُ الْكِتَابِ الْحَكِيمِ|أَكَانَ لِلنَّاسِ عَجَبًا أَنْ أَوْحَيْنَا إِلَىٰ رَجُلٍ مِّنْهُمْ|إِنَّ رَبَّكُمُ اللَّهُ الَّذِي خَلَقَ السَّمَاوَاتِ"},
+  {id:11, name:"Hûd",         ar:"الٓر ۚ كِتَابٌ أُحْكِمَتْ آيَاتُهُ|أَلَّا تَعْبُدُوا إِلَّا اللَّهَ|وَأَنِ اسْتَغْفِرُوا رَبَّكُمْ ثُمَّ تُوبُوا إِلَيْهِ"},
+  {id:12, name:"Yûsuf",       ar:"الٓر ۚ تِلْكَ آيَاتُ الْكِتَابِ الْمُبِينِ|إِنَّا أَنزَلْنَاهُ قُرْآنًا عَرَبِيًّا|نَحْنُ نَقُصُّ عَلَيْكَ أَحْسَنَ الْقَصَصِ"},
+  {id:13, name:"Ra'd",        ar:"الٓمٓر ۚ تِلْكَ آيَاتُ الْكِتَابِ|اللَّهُ الَّذِي رَفَعَ السَّمَاوَاتِ بِغَيْرِ عَمَدٍ|وَهُوَ الَّذِي مَدَّ الْأَرْضَ"},
+  {id:14, name:"İbrâhîm",     ar:"الٓر ۚ كِتَابٌ أَنزَلْنَاهُ إِلَيْكَ|اللَّهِ الَّذِي لَهُ مَا فِي السَّمَاوَاتِ|الَّذِينَ يَسْتَحِبُّونَ الْحَيَاةَ الدُّنْيَا"},
+  {id:15, name:"Hicr",        ar:"الٓر ۚ تِلْكَ آيَاتُ الْكِتَابِ وَقُرْآنٍ مُّبِينٍ|رُبَمَا يَوَدُّ الَّذِينَ كَفَرُوا لَوْ كَانُوا مُسْلِمِينَ|ذَرْهُمْ يَأْكُلُوا وَيَتَمَتَّعُوا"},
+  {id:16, name:"Nahl",        ar:"أَتَىٰ أَمْرُ اللَّهِ فَلَا تَسْتَعْجِلُوهُ|يُنَزِّلُ الْمَلَائِكَةَ بِالرُّوحِ|خَلَقَ السَّمَاوَاتِ وَالْأَرْضَ بِالْحَقِّ"},
+  {id:17, name:"İsrâ",        ar:"سُبْحَانَ الَّذِي أَسْرَىٰ بِعَبْدِهِ لَيْلًا|وَآتَيْنَا مُوسَى الْكِتَابَ|ذُرِّيَّةَ مَنْ حَمَلْنَا مَعَ نُوحٍ"},
+  {id:18, name:"Kehf",        ar:"الْحَمْدُ لِلَّهِ الَّذِي أَنزَلَ عَلَىٰ عَبْدِهِ الْكِتَابَ|قَيِّمًا لِّيُنذِرَ بَأْسًا شَدِيدًا|مَّاكِثِينَ فِيهِ أَبَدًا"},
+  {id:19, name:"Meryem",      ar:"كٓهيعٓصٓ|ذِكْرُ رَحْمَتِ رَبِّكَ عَبْدَهُ زَكَرِيَّا|إِذْ نَادَىٰ رَبَّهُ نِدَاءً خَفِيًّا"},
+  {id:20, name:"Tâ-Hâ",      ar:"طه|مَا أَنزَلْنَا عَلَيْكَ الْقُرْآنَ لِتَشْقَىٰ|إِلَّا تَذْكِرَةً لِّمَن يَخْشَىٰ"},
+  {id:21, name:"Enbiyâ",      ar:"اقْتَرَبَ لِلنَّاسِ حِسَابُهُمْ|مَا يَأْتِيهِم مِّن ذِكْرٍ|لَاهِيَةً قُلُوبُهُمْ"},
+  {id:22, name:"Hac",         ar:"يَا أَيُّهَا النَّاسُ اتَّقُوا رَبَّكُمْ|يَوْمَ تَرَوْنَهَا تَذْهَلُ كُلُّ مُرْضِعَةٍ|وَمِنَ النَّاسِ مَن يُجَادِلُ فِي اللَّهِ"},
+  {id:23, name:"Mü'minûn",    ar:"قَدْ أَفْلَحَ الْمُؤْمِنُونَ|الَّذِينَ هُمْ فِي صَلَاتِهِمْ خَاشِعُونَ|وَالَّذِينَ هُمْ عَنِ اللَّغْوِ مُعْرِضُونَ"},
+  {id:24, name:"Nûr",         ar:"سُورَةٌ أَنزَلْنَاهَا وَفَرَضْنَاهَا|الزَّانِيَةُ وَالزَّانِي فَاجْلِدُوا كُلَّ وَاحِدٍ|الزَّانِي لَا يَنكِحُ إِلَّا زَانِيَةً"},
+  {id:25, name:"Furkân",      ar:"تَبَارَكَ الَّذِي نَزَّلَ الْفُرْقَانَ|الَّذِي لَهُ مُلْكُ السَّمَاوَاتِ|وَاتَّخَذُوا مِن دُونِهِ آلِهَةً"},
+  {id:26, name:"Şuarâ",       ar:"طسم|تِلْكَ آيَاتُ الْكِتَابِ الْمُبِينِ|لَعَلَّكَ بَاخِعٌ نَّفْسَكَ"},
+  {id:27, name:"Neml",        ar:"طس ۚ تِلْكَ آيَاتُ الْقُرْآنِ|هُدًى وَبُشْرَىٰ لِلْمُؤْمِنِينَ|الَّذِينَ يُقِيمُونَ الصَّلَاةَ"},
+  {id:28, name:"Kasas",       ar:"طسم|تِلْكَ آيَاتُ الْكِتَابِ الْمُبِينِ|نَتْلُو عَلَيْكَ مِن نَّبَإِ مُوسَى"},
+  {id:29, name:"Ankebût",     ar:"الٓمٓ|أَحَسِبَ النَّاسُ أَن يُتْرَكُوا أَن يَقُولُوا آمَنَّا|وَلَقَدْ فَتَنَّا الَّذِينَ مِن قَبْلِهِمْ"},
+  {id:30, name:"Rûm",         ar:"الٓمٓ|غُلِبَتِ الرُّومُ|فِي أَدْنَى الْأَرْضِ وَهُم مِّن بَعْدِ غَلَبِهِمْ سَيَغْلِبُونَ"},
+  {id:31, name:"Lokmân",      ar:"الٓمٓ|تِلْكَ آيَاتُ الْكِتَابِ الْحَكِيمِ|هُدًى وَرَحْمَةً لِّلْمُحْسِنِينَ"},
+  {id:32, name:"Secde",       ar:"الٓمٓ|تَنزِيلُ الْكِتَابِ لَا رَيْبَ فِيهِ مِن رَّبِّ الْعَالَمِينَ|أَمْ يَقُولُونَ افْتَرَاهُ"},
+  {id:33, name:"Ahzâb",       ar:"يَا أَيُّهَا النَّبِيُّ اتَّقِ اللَّهَ|وَاتَّبِعْ مَا يُوحَىٰ إِلَيْكَ مِن رَّبِّكَ|وَتَوَكَّلْ عَلَى اللَّهِ"},
+  {id:34, name:"Sebe'",       ar:"الْحَمْدُ لِلَّهِ الَّذِي لَهُ مَا فِي السَّمَاوَاتِ|يَعْلَمُ مَا يَلِجُ فِي الْأَرْضِ|وَقَالَ الَّذِينَ كَفَرُوا لَا تَأْتِينَا السَّاعَةُ"},
+  {id:35, name:"Fâtır",       ar:"الْحَمْدُ لِلَّهِ فَاطِرِ السَّمَاوَاتِ|مَا يَفْتَحِ اللَّهُ لِلنَّاسِ مِن رَّحْمَةٍ|يَا أَيُّهَا النَّاسُ اذْكُرُوا نِعْمَتَ اللَّهِ"}
+];
+
+// ── SES: everyayah.com hafız sesi ────────────────────────────────────────────
+// everyayah.com/recitations/{reciter}/{surah:3}/{ayah:3}.mp3
+// Örnek: /recitations/Abdul_Basit_Murattal_64kbps/001/001.mp3
+// İlk 3 ayeti sırayla çalar
+
+const RECITERS = [
+  'Abdul_Basit_Murattal_64kbps',   // Abdulbasit Abdussamed (Murattil)
+  'Alafasy_64kbps',                 // Mişari Raşid el-Afasi
+  'Husary_64kbps',                  // Mahmud Halil el-Husari
+];
+let currentReciter = RECITERS[0];
+let audioQueue = [];
+let currentAudio = null;
+let isPlaying = false;
+
+function pad3(n){ return String(n).padStart(3,'0'); }
+
+function buildUrls(surahId, ayahCount){
+  return Array.from({length:ayahCount},(_,i)=>
+    `https://everyayah.com/data/${currentReciter}/${pad3(surahId)}${pad3(i+1)}.mp3`
+  );
+}
+
+function stopAudio(){
+  isPlaying=false;
+  audioQueue=[];
+  if(currentAudio){
+    currentAudio.pause();
+    currentAudio.src='';
+    currentAudio=null;
+  }
+}
+
+function playQueue(urls, btnEl){
+  stopAudio();
+  if(!urls.length) return;
+  isPlaying=true;
+  audioQueue=[...urls];
+  if(btnEl){ btnEl.textContent='⏳ Yükleniyor...'; btnEl.disabled=true; }
+
+  function playNext(){
+    if(!isPlaying || !audioQueue.length){
+      if(btnEl){ btnEl.textContent='🔊 Sesli Dinle'; btnEl.disabled=false; }
+      isPlaying=false; return;
+    }
+    const url=audioQueue.shift();
+    const audio=new Audio(url);
+    audio.crossOrigin='anonymous';
+    currentAudio=audio;
+
+    audio.oncanplay=()=>{
+      if(btnEl){ btnEl.textContent='🔊 Dinleniyor...'; btnEl.disabled=false; }
+    };
+    audio.onended=playNext;
+    audio.onerror=()=>{
+      // Bu kari için hata → bir sonrakini dene ya da dur
+      console.warn('Ses yüklenemedi:',url);
+      playNext();
+    };
+    audio.play().catch(()=>playNext());
+  }
+  playNext();
+}
+
+function playCurrentSurah(btnEl){
+  if(!setQ.length || idx>=setQ.length) return;
+  const s=setQ[idx].s;
+  // İlk 3 ayet (Tevbe suresi 1 numaralı ayet olmadığından 1-3 yine de çalışır)
+  const urls=buildUrls(s.id, 3);
+  playQueue(urls, btnEl);
+}
+
+// ── OYUN ─────────────────────────────────────────────────────────────────────
+let setQ=[],idx=0,score=0,answered=false,autoTmr=null;
+const SET=10;
+
+function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+
+function genSet(){
+  const names=DB.map(s=>s.name);
+  return shuffle([...DB]).slice(0,SET).map(s=>({
+    s, correct:s.name,
+    opts:shuffle([s.name,...shuffle(names.filter(n=>n!==s.name)).slice(0,2)])
+  }));
+}
+
+function adjustFontSize(){
+  // Arapça metin alanının yüksekliğine göre font ayarla
+  const sec = document.querySelector('.arabic-section');
+  const el  = document.getElementById('arabicVerses');
+  if(!sec||!el) return;
+  const available = sec.clientHeight - 50; // label için boşluk
+  let fs = Math.min(window.innerHeight*0.038, window.innerWidth*0.05, 32);
+  el.style.fontSize = fs+'px';
+  // Taşıyorsa küçült
+  for(let i=0;i<8;i++){
+    if(el.scrollHeight > available+20 && fs>12){
+      fs = Math.max(12, fs-2);
+      el.style.fontSize=fs+'px';
+    } else break;
+  }
+}
+
+function render(){
+  clearTimeout(autoTmr);
+  if(idx>=setQ.length){
+    document.getElementById('feedbackMsg').textContent='🎉 Set tamamlandı! Yeni Set ile devam edin.';
+    document.getElementById('nextBtn').disabled=true;
+    document.getElementById('listenBtn').disabled=true;
+    return;
+  }
+  document.getElementById('nextBtn').disabled=false;
+  document.getElementById('listenBtn').disabled=false;
+  answered=false;
+  const q=setQ[idx];
+
+  document.getElementById('qNum').textContent=idx+1;
+  document.getElementById('qTotal').textContent=SET;
+  document.getElementById('sureLabel').textContent=`✨ İlk 3 Ayet · Sure ${q.s.id}`;
+
+  const lines=q.s.ar.split('|');
+  document.getElementById('arabicVerses').innerHTML =
+    lines.map((l,i)=>`<span class="ayet-line"><span style="color:#9a7010;font-size:.75em;margin-left:6px;direction:ltr">﴿${i+1}﴾</span> ${l}</span>`).join('');
+
+  const oc=document.getElementById('optionsContainer');
+  oc.innerHTML='';
+  q.opts.forEach(opt=>{
+    const b=document.createElement('button');
+    b.className='opt-btn'; b.textContent=opt.toLocaleUpperCase('tr');
+    b.addEventListener('click',()=>handleAnswer(opt));
+    oc.appendChild(b);
+  });
+
+  document.getElementById('feedbackMsg').textContent='💡 Bir cevap seçin';
+
+  // font boyutunu bir sonraki frame'de ayarla (DOM render sonrası)
+  requestAnimationFrame(adjustFontSize);
+}
+
+function handleAnswer(sel){
+  if(answered) return;
+  answered=true;
+  const q=setQ[idx];
+  const ok=sel===q.correct;
+  if(ok){score++;document.getElementById('scoreNum').textContent=score;}
+  document.getElementById('feedbackMsg').textContent=
+    ok?`✅ Doğru! +1 puan`:`❌ Yanlış! Doğru: ${q.correct.toLocaleUpperCase('tr')}`;
+  document.querySelectorAll('.opt-btn').forEach(b=>{
+    b.disabled=true;
+    if(b.textContent===q.correct.toLocaleUpperCase('tr')) b.classList.add('opt-correct');
+    else if(b.textContent===sel.toLocaleUpperCase('tr')&&!ok) b.classList.add('opt-wrong');
+  });
+  autoTmr=setTimeout(advance,1500);
+}
+
+function advance(){
+  clearTimeout(autoTmr);
+  stopAudio();
+  const btn=document.getElementById('listenBtn');
+  if(btn){btn.textContent='🔊 Sesli Dinle';btn.disabled=false;}
+  if(!answered){document.getElementById('feedbackMsg').textContent='⚠️ Önce cevap seçin!';return;}
+  idx++;render();
+}
+
+function resetGame(){
+  clearTimeout(autoTmr);
+  stopAudio();
+  const btn=document.getElementById('listenBtn');
+  if(btn){btn.textContent='🔊 Sesli Dinle';btn.disabled=false;}
+  setQ=genSet();idx=0;score=0;answered=false;
+  document.getElementById('scoreNum').textContent='0';
+  render();
+}
+
+document.getElementById('nextBtn').addEventListener('click',advance);
+document.getElementById('resetBtn').addEventListener('click',resetGame);
+document.getElementById('listenBtn').addEventListener('click',function(){ playCurrentSurah(this); });
+window.addEventListener('resize',adjustFontSize);
+
+setQ=genSet();
+render();
+</script>
+</body>
+</html>
