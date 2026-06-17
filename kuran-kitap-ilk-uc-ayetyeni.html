@@ -128,6 +128,8 @@ html,body{
 }
 .listen-btn:hover{background:#3a8050;}
 .listen-btn:active{transform:scale(.96);}
+.listen-btn.playing{background:#8a3020;}
+.listen-btn.playing:hover{background:#a04030;}
 
 .reset-btn{
   background:transparent;
@@ -249,9 +251,9 @@ html,body{
   color:#e8ffe0;
 }
 .opt-correct{
-  background:#1a5230 !important;
-  border-color:#5ec87a !important;
-  color:#d0ffd0 !important;
+  background:#15457a !important;
+  border-color:#4fa0e8 !important;
+  color:#d8ecff !important;
   letter-spacing:1.5px;
 }
 .opt-wrong{
@@ -436,6 +438,11 @@ function buildUrls(surahId, ayahCount){
   );
 }
 
+function resetListenBtn(){
+  const b=document.getElementById('listenBtn');
+  if(b){ b.textContent='🔊 Sesli Dinle'; b.disabled=false; b.classList.remove('playing'); }
+}
+
 function stopAudio(){
   isPlaying=false;
   audioQueue=[];
@@ -451,11 +458,11 @@ function playQueue(urls, btnEl){
   if(!urls.length) return;
   isPlaying=true;
   audioQueue=[...urls];
-  if(btnEl){ btnEl.textContent='⏳ Yükleniyor...'; btnEl.disabled=true; }
+  if(btnEl){ btnEl.textContent='⏳ Yükleniyor...'; btnEl.classList.add('playing'); }
 
   function playNext(){
     if(!isPlaying || !audioQueue.length){
-      if(btnEl){ btnEl.textContent='🔊 Sesli Dinle'; btnEl.disabled=false; }
+      resetListenBtn();
       isPlaying=false; return;
     }
     const url=audioQueue.shift();
@@ -464,7 +471,7 @@ function playQueue(urls, btnEl){
     currentAudio=audio;
 
     audio.oncanplay=()=>{
-      if(btnEl){ btnEl.textContent='🔊 Dinleniyor...'; btnEl.disabled=false; }
+      if(isPlaying && btnEl){ btnEl.textContent='⏹️ Durdur'; btnEl.classList.add('playing'); }
     };
     audio.onended=playNext;
     audio.onerror=()=>{
@@ -483,6 +490,83 @@ function playCurrentSurah(btnEl){
   // İlk 3 ayet (Tevbe suresi 1 numaralı ayet olmadığından 1-3 yine de çalışır)
   const urls=buildUrls(s.id, 3);
   playQueue(urls, btnEl);
+}
+
+// Toggle: çalıyorsa durdur, değilse başlat
+function toggleListen(btnEl){
+  if(isPlaying){
+    stopAudio();
+    resetListenBtn();
+  } else {
+    playCurrentSurah(btnEl);
+  }
+}
+
+// ── ALKIŞ EFEKTİ (ses + konfeti) ─────────────────────────────────────────────
+let applauseCtx=null;
+function playApplause(){
+  // WebAudio ile kısa bir alkış/gürültü efekti üret (harici dosya gerektirmez)
+  try{
+    applauseCtx = applauseCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const ctx=applauseCtx;
+    if(ctx.state==='suspended') ctx.resume();
+    const dur=1.1;
+    const buf=ctx.createBuffer(1, ctx.sampleRate*dur, ctx.sampleRate);
+    const data=buf.getChannelData(0);
+    for(let i=0;i<data.length;i++){
+      const t=i/data.length;
+      // çoğalan/sönen zarf + rastgele "el çırpma" patlamaları
+      const env=Math.sin(Math.PI*t)*(1-t*0.3);
+      const clap=(Math.random()*2-1)*(Math.random()<0.06?1:0.25);
+      data[i]=clap*env*0.5;
+    }
+    const src=ctx.createBufferSource();
+    src.buffer=buf;
+    const filt=ctx.createBiquadFilter();
+    filt.type='bandpass'; filt.frequency.value=1800; filt.Q.value=0.7;
+    const gain=ctx.createGain(); gain.gain.value=0.9;
+    src.connect(filt); filt.connect(gain); gain.connect(ctx.destination);
+    src.start();
+  }catch(e){ /* ses desteklenmiyorsa sessizce geç */ }
+}
+
+function launchConfetti(){
+  const colors=['#4fa0e8','#15457a','#ffd36b','#5ec87a','#e8709b','#ffffff'];
+  const N=80;
+  const wrap=document.createElement('div');
+  wrap.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden;';
+  document.body.appendChild(wrap);
+  for(let i=0;i<N;i++){
+    const p=document.createElement('div');
+    const sz=6+Math.random()*8;
+    const left=Math.random()*100;
+    const dur=1.6+Math.random()*1.4;
+    const delay=Math.random()*0.25;
+    const rot=Math.random()*360;
+    const drift=(Math.random()*2-1)*120;
+    p.style.cssText=`position:absolute;top:-20px;left:${left}%;width:${sz}px;height:${sz*0.5}px;`
+      +`background:${colors[i%colors.length]};opacity:0;`
+      +`border-radius:${Math.random()<0.5?'50%':'2px'};`
+      +`transform:rotate(${rot}deg);`
+      +`animation:confFall ${dur}s ${delay}s ease-in forwards;`
+      +`--drift:${drift}px;`;
+    wrap.appendChild(p);
+  }
+  setTimeout(()=>wrap.remove(),3600);
+}
+// konfeti animasyonu için stil enjekte et
+(function(){
+  if(document.getElementById('confettiStyle')) return;
+  const st=document.createElement('style');
+  st.id='confettiStyle';
+  st.textContent='@keyframes confFall{0%{opacity:0;transform:translate(0,0) rotate(0)}'
+    +'10%{opacity:1}100%{opacity:0;transform:translate(var(--drift),105vh) rotate(720deg)}}';
+  document.head.appendChild(st);
+})();
+
+function celebrate(){
+  playApplause();
+  launchConfetti();
 }
 
 // ── OYUN ─────────────────────────────────────────────────────────────────────
@@ -557,7 +641,7 @@ function handleAnswer(sel){
   answered=true;
   const q=setQ[idx];
   const ok=sel===q.correct;
-  if(ok){score++;document.getElementById('scoreNum').textContent=score;}
+  if(ok){score++;document.getElementById('scoreNum').textContent=score;celebrate();}
   document.getElementById('feedbackMsg').textContent=
     ok?`✅ Doğru! +1 puan`:`❌ Yanlış! Doğru: ${q.correct.toLocaleUpperCase('tr')}`;
   document.querySelectorAll('.opt-btn').forEach(b=>{
@@ -571,8 +655,7 @@ function handleAnswer(sel){
 function advance(){
   clearTimeout(autoTmr);
   stopAudio();
-  const btn=document.getElementById('listenBtn');
-  if(btn){btn.textContent='🔊 Sesli Dinle';btn.disabled=false;}
+  resetListenBtn();
   if(!answered){document.getElementById('feedbackMsg').textContent='⚠️ Önce cevap seçin!';return;}
   idx++;render();
 }
@@ -580,8 +663,7 @@ function advance(){
 function resetGame(){
   clearTimeout(autoTmr);
   stopAudio();
-  const btn=document.getElementById('listenBtn');
-  if(btn){btn.textContent='🔊 Sesli Dinle';btn.disabled=false;}
+  resetListenBtn();
   setQ=genSet();idx=0;score=0;answered=false;
   document.getElementById('scoreNum').textContent='0';
   render();
@@ -589,7 +671,7 @@ function resetGame(){
 
 document.getElementById('nextBtn').addEventListener('click',advance);
 document.getElementById('resetBtn').addEventListener('click',resetGame);
-document.getElementById('listenBtn').addEventListener('click',function(){ playCurrentSurah(this); });
+document.getElementById('listenBtn').addEventListener('click',function(){ toggleListen(this); });
 window.addEventListener('resize',adjustFontSize);
 
 setQ=genSet();
