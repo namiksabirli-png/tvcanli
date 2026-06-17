@@ -34,8 +34,8 @@ html,body{
   background:linear-gradient(160deg,#fdf6e0 0%,#f4e8c0 55%,#ecdba0 100%);
   border-radius:4px 18px 18px 4px;
   box-shadow:
-    -8px 0 0 #b8920a,        /* sol cilt şeridi */
-    0 0 0 3px #c9a520,       /* altın kenar */
+    -8px 0 0 #b8920a,
+    0 0 0 3px #c9a520,
     8px 14px 60px rgba(0,0,0,.65),
     -2px 2px 20px rgba(0,0,0,.3);
   display:flex;
@@ -128,8 +128,10 @@ html,body{
 }
 .listen-btn:hover{background:#3a8050;}
 .listen-btn:active{transform:scale(.96);}
-.listen-btn.playing{background:#8a3020;}
-.listen-btn.playing:hover{background:#a04030;}
+.listen-btn.playing{
+  background:#8a2a1a;
+  box-shadow:0 0 20px rgba(200,50,20,.4);
+}
 
 .reset-btn{
   background:transparent;
@@ -152,12 +154,12 @@ html,body{
   flex:1;
   display:flex;
   flex-direction:column;
-  padding:0 20px 12px 60px; /* sol kırmızı çizginin sağı */
+  padding:0 20px 12px 60px;
   overflow:hidden;
   min-height:0;
 }
 
-/* ══ ARAPÇA METİN ALANI (büyük, %55 yükseklik) ══ */
+/* ══ ARAPÇA METİN ALANI ══ */
 .arabic-section{
   flex:0 0 auto;
   display:flex;
@@ -251,10 +253,11 @@ html,body{
   color:#e8ffe0;
 }
 .opt-correct{
-  background:#15457a !important;
-  border-color:#4fa0e8 !important;
-  color:#d8ecff !important;
+  background:#1a6bc4 !important;
+  border-color:#4a9eff !important;
+  color:#ffffff !important;
   letter-spacing:1.5px;
+  box-shadow:0 0 30px rgba(26,107,196,.5);
 }
 .opt-wrong{
   background:#6b1f12 !important;
@@ -264,6 +267,29 @@ html,body{
   letter-spacing:1.5px;
 }
 .opt-btn[disabled]{cursor:default;}
+
+/* ══ ALKIŞ EFEKTİ ══ */
+.confetti-container{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  pointer-events:none;
+  z-index:9999;
+  overflow:hidden;
+}
+.confetti{
+  position:absolute;
+  width:10px;
+  height:10px;
+  top:-10px;
+  animation: confettiFall linear forwards;
+}
+@keyframes confettiFall{
+  0%{ transform:translateY(0) rotate(0deg) scale(1); opacity:1; }
+  100%{ transform:translateY(110vh) rotate(720deg) scale(0.3); opacity:0; }
+}
 
 /* ══ ALT BİLGİ SATIRI ══ */
 .bottom-bar{
@@ -308,25 +334,20 @@ html,body{
 .next-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #6a4408;}
 .next-btn:disabled{opacity:.45;cursor:not-allowed;transform:none;}
 
-/* ══ FONT BOYUTU HESAPLAMA: container yüksekliğine göre ══ */
-/* Büyük ekran */
+/* ══ FONT BOYUTU ══ */
 @media(min-height:700px){
   .arabic-text{ font-size:clamp(1.4rem,3.2vh,2.2rem); }
   .arabic-section{ flex: 0 0 52%; }
 }
-/* Orta ekran */
 @media(max-height:699px) and (min-height:500px){
   .arabic-text{ font-size:clamp(1.1rem,2.8vh,1.7rem); }
   .arabic-section{ flex: 0 0 48%; }
 }
-/* Küçük ekran */
 @media(max-height:499px){
   .arabic-text{ font-size:1rem; line-height:1.6; }
   .arabic-section{ flex: 0 0 44%; }
   .opt-btn{ min-height:36px; font-size:.85rem; }
 }
-
-/* Geniş ekranlarda yatay padding artır */
 @media(min-width:600px){
   .page-body{ padding-left:70px; padding-right:28px; }
 }
@@ -416,14 +437,10 @@ const DB = [
 ];
 
 // ── SES: everyayah.com hafız sesi ────────────────────────────────────────────
-// everyayah.com/recitations/{reciter}/{surah:3}/{ayah:3}.mp3
-// Örnek: /recitations/Abdul_Basit_Murattal_64kbps/001/001.mp3
-// İlk 3 ayeti sırayla çalar
-
 const RECITERS = [
-  'Abdul_Basit_Murattal_64kbps',   // Abdulbasit Abdussamed (Murattil)
-  'Alafasy_64kbps',                 // Mişari Raşid el-Afasi
-  'Husary_64kbps',                  // Mahmud Halil el-Husari
+  'Abdul_Basit_Murattal_64kbps',
+  'Alafasy_64kbps',
+  'Husary_64kbps',
 ];
 let currentReciter = RECITERS[0];
 let audioQueue = [];
@@ -438,145 +455,102 @@ function buildUrls(surahId, ayahCount){
   );
 }
 
-function resetListenBtn(){
-  const b=document.getElementById('listenBtn');
-  if(b){ b.textContent='🔊 Sesli Dinle'; b.disabled=false; b.classList.remove('playing'); }
-}
-
-function stopAudio(){
-  isPlaying=false;
-  audioQueue=[];
+function stopAudio(btnEl){
+  isPlaying = false;
+  audioQueue = [];
   if(currentAudio){
     currentAudio.pause();
-    currentAudio.src='';
-    currentAudio=null;
+    currentAudio.src = '';
+    currentAudio = null;
+  }
+  if(btnEl){
+    btnEl.textContent = '🔊 Sesli Dinle';
+    btnEl.classList.remove('playing');
+    btnEl.disabled = false;
   }
 }
 
 function playQueue(urls, btnEl){
-  stopAudio();
+  if(isPlaying){
+    stopAudio(btnEl);
+    return;
+  }
+  
+  stopAudio(btnEl);
   if(!urls.length) return;
-  isPlaying=true;
-  audioQueue=[...urls];
-  if(btnEl){ btnEl.textContent='⏳ Yükleniyor...'; btnEl.classList.add('playing'); }
+  
+  isPlaying = true;
+  audioQueue = [...urls];
+  btnEl.textContent = '⏳ Yükleniyor...';
+  btnEl.classList.add('playing');
+  btnEl.disabled = true;
 
   function playNext(){
     if(!isPlaying || !audioQueue.length){
-      resetListenBtn();
-      isPlaying=false; return;
+      stopAudio(btnEl);
+      return;
     }
-    const url=audioQueue.shift();
-    const audio=new Audio(url);
-    audio.crossOrigin='anonymous';
-    currentAudio=audio;
+    const url = audioQueue.shift();
+    const audio = new Audio(url);
+    audio.crossOrigin = 'anonymous';
+    currentAudio = audio;
 
-    audio.oncanplay=()=>{
-      if(isPlaying && btnEl){ btnEl.textContent='⏹️ Durdur'; btnEl.classList.add('playing'); }
+    audio.oncanplay = () => {
+      btnEl.textContent = '🔊 Dinleniyor...';
+      btnEl.disabled = false;
     };
-    audio.onended=playNext;
-    audio.onerror=()=>{
-      // Bu kari için hata → bir sonrakini dene ya da dur
-      console.warn('Ses yüklenemedi:',url);
+    audio.onended = playNext;
+    audio.onerror = () => {
+      console.warn('Ses yüklenemedi:', url);
       playNext();
     };
-    audio.play().catch(()=>playNext());
+    audio.play().catch(() => playNext());
   }
   playNext();
 }
 
 function playCurrentSurah(btnEl){
   if(!setQ.length || idx>=setQ.length) return;
-  const s=setQ[idx].s;
-  // İlk 3 ayet (Tevbe suresi 1 numaralı ayet olmadığından 1-3 yine de çalışır)
-  const urls=buildUrls(s.id, 3);
+  const s = setQ[idx].s;
+  const urls = buildUrls(s.id, 3);
   playQueue(urls, btnEl);
 }
 
-// Toggle: çalıyorsa durdur, değilse başlat
-function toggleListen(btnEl){
-  if(isPlaying){
-    stopAudio();
-    resetListenBtn();
-  } else {
-    playCurrentSurah(btnEl);
+// ── ALKIŞ EFEKTİ ────────────────────────────────────────────────────────────
+function createConfetti() {
+  const container = document.createElement('div');
+  container.className = 'confetti-container';
+  document.body.appendChild(container);
+  
+  const colors = ['#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#ff6fb7', '#a66cff', '#ff9f43', '#00d2d3'];
+  const shapes = ['■', '●', '▲', '★', '♦', '♥', '✦', '⬡'];
+  
+  for(let i = 0; i < 80; i++) {
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti';
+    confetti.textContent = shapes[Math.floor(Math.random() * shapes.length)];
+    confetti.style.left = Math.random() * 100 + '%';
+    confetti.style.color = colors[Math.floor(Math.random() * colors.length)];
+    confetti.style.fontSize = (Math.random() * 20 + 10) + 'px';
+    confetti.style.animationDuration = (Math.random() * 2 + 1.5) + 's';
+    confetti.style.animationDelay = (Math.random() * 1.5) + 's';
+    container.appendChild(confetti);
   }
-}
-
-// ── ALKIŞ EFEKTİ (ses + konfeti) ─────────────────────────────────────────────
-let applauseCtx=null;
-function playApplause(){
-  // WebAudio ile kısa bir alkış/gürültü efekti üret (harici dosya gerektirmez)
-  try{
-    applauseCtx = applauseCtx || new (window.AudioContext||window.webkitAudioContext)();
-    const ctx=applauseCtx;
-    if(ctx.state==='suspended') ctx.resume();
-    const dur=1.1;
-    const buf=ctx.createBuffer(1, ctx.sampleRate*dur, ctx.sampleRate);
-    const data=buf.getChannelData(0);
-    for(let i=0;i<data.length;i++){
-      const t=i/data.length;
-      // çoğalan/sönen zarf + rastgele "el çırpma" patlamaları
-      const env=Math.sin(Math.PI*t)*(1-t*0.3);
-      const clap=(Math.random()*2-1)*(Math.random()<0.06?1:0.25);
-      data[i]=clap*env*0.5;
-    }
-    const src=ctx.createBufferSource();
-    src.buffer=buf;
-    const filt=ctx.createBiquadFilter();
-    filt.type='bandpass'; filt.frequency.value=1800; filt.Q.value=0.7;
-    const gain=ctx.createGain(); gain.gain.value=0.9;
-    src.connect(filt); filt.connect(gain); gain.connect(ctx.destination);
-    src.start();
-  }catch(e){ /* ses desteklenmiyorsa sessizce geç */ }
-}
-
-function launchConfetti(){
-  const colors=['#4fa0e8','#15457a','#ffd36b','#5ec87a','#e8709b','#ffffff'];
-  const N=80;
-  const wrap=document.createElement('div');
-  wrap.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden;';
-  document.body.appendChild(wrap);
-  for(let i=0;i<N;i++){
-    const p=document.createElement('div');
-    const sz=6+Math.random()*8;
-    const left=Math.random()*100;
-    const dur=1.6+Math.random()*1.4;
-    const delay=Math.random()*0.25;
-    const rot=Math.random()*360;
-    const drift=(Math.random()*2-1)*120;
-    p.style.cssText=`position:absolute;top:-20px;left:${left}%;width:${sz}px;height:${sz*0.5}px;`
-      +`background:${colors[i%colors.length]};opacity:0;`
-      +`border-radius:${Math.random()<0.5?'50%':'2px'};`
-      +`transform:rotate(${rot}deg);`
-      +`animation:confFall ${dur}s ${delay}s ease-in forwards;`
-      +`--drift:${drift}px;`;
-    wrap.appendChild(p);
-  }
-  setTimeout(()=>wrap.remove(),3600);
-}
-// konfeti animasyonu için stil enjekte et
-(function(){
-  if(document.getElementById('confettiStyle')) return;
-  const st=document.createElement('style');
-  st.id='confettiStyle';
-  st.textContent='@keyframes confFall{0%{opacity:0;transform:translate(0,0) rotate(0)}'
-    +'10%{opacity:1}100%{opacity:0;transform:translate(var(--drift),105vh) rotate(720deg)}}';
-  document.head.appendChild(st);
-})();
-
-function celebrate(){
-  playApplause();
-  launchConfetti();
+  
+  // 3 saniye sonra temizle
+  setTimeout(() => {
+    container.remove();
+  }, 3500);
 }
 
 // ── OYUN ─────────────────────────────────────────────────────────────────────
-let setQ=[],idx=0,score=0,answered=false,autoTmr=null;
-const SET=10;
+let setQ = [], idx = 0, score = 0, answered = false, autoTmr = null;
+const SET = 10;
 
 function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
 
 function genSet(){
-  const names=DB.map(s=>s.name);
+  const names = DB.map(s=>s.name);
   return shuffle([...DB]).slice(0,SET).map(s=>({
     s, correct:s.name,
     opts:shuffle([s.name,...shuffle(names.filter(n=>n!==s.name)).slice(0,2)])
@@ -584,14 +558,12 @@ function genSet(){
 }
 
 function adjustFontSize(){
-  // Arapça metin alanının yüksekliğine göre font ayarla
   const sec = document.querySelector('.arabic-section');
   const el  = document.getElementById('arabicVerses');
   if(!sec||!el) return;
-  const available = sec.clientHeight - 50; // label için boşluk
+  const available = sec.clientHeight - 50;
   let fs = Math.min(window.innerHeight*0.038, window.innerWidth*0.05, 32);
   el.style.fontSize = fs+'px';
-  // Taşıyorsa küçült
   for(let i=0;i<8;i++){
     if(el.scrollHeight > available+20 && fs>12){
       fs = Math.max(12, fs-2);
@@ -617,7 +589,8 @@ function render(){
   document.getElementById('qTotal').textContent=SET;
   document.getElementById('sureLabel').textContent=`✨ İlk 3 Ayet · Sure ${q.s.id}`;
 
-  const lines=q.s.ar.split('|');
+  // TÜM 3 AYETİ GÖSTER
+  const lines = q.s.ar.split('|');
   document.getElementById('arabicVerses').innerHTML =
     lines.map((l,i)=>`<span class="ayet-line"><span style="color:#9a7010;font-size:.75em;margin-left:6px;direction:ltr">﴿${i+1}﴾</span> ${l}</span>`).join('');
 
@@ -625,14 +598,13 @@ function render(){
   oc.innerHTML='';
   q.opts.forEach(opt=>{
     const b=document.createElement('button');
-    b.className='opt-btn'; b.textContent=opt.toLocaleUpperCase('tr');
+    b.className='opt-btn'; 
+    b.textContent=opt.toLocaleUpperCase('tr');
     b.addEventListener('click',()=>handleAnswer(opt));
     oc.appendChild(b);
   });
 
   document.getElementById('feedbackMsg').textContent='💡 Bir cevap seçin';
-
-  // font boyutunu bir sonraki frame'de ayarla (DOM render sonrası)
   requestAnimationFrame(adjustFontSize);
 }
 
@@ -641,29 +613,41 @@ function handleAnswer(sel){
   answered=true;
   const q=setQ[idx];
   const ok=sel===q.correct;
-  if(ok){score++;document.getElementById('scoreNum').textContent=score;celebrate();}
-  document.getElementById('feedbackMsg').textContent=
-    ok?`✅ Doğru! +1 puan`:`❌ Yanlış! Doğru: ${q.correct.toLocaleUpperCase('tr')}`;
+  
+  if(ok){
+    score++;
+    document.getElementById('scoreNum').textContent=score;
+    document.getElementById('feedbackMsg').textContent='✅ Doğru! +1 puan 🎉';
+    // Alkış efekti
+    createConfetti();
+  } else {
+    document.getElementById('feedbackMsg').textContent=`❌ Yanlış! Doğru: ${q.correct.toLocaleUpperCase('tr')}`;
+  }
+  
   document.querySelectorAll('.opt-btn').forEach(b=>{
     b.disabled=true;
-    if(b.textContent===q.correct.toLocaleUpperCase('tr')) b.classList.add('opt-correct');
-    else if(b.textContent===sel.toLocaleUpperCase('tr')&&!ok) b.classList.add('opt-wrong');
+    if(b.textContent===q.correct.toLocaleUpperCase('tr')){
+      b.classList.add('opt-correct');
+    } else if(b.textContent===sel.toLocaleUpperCase('tr') && !ok){
+      b.classList.add('opt-wrong');
+    }
   });
-  autoTmr=setTimeout(advance,1500);
+  
+  autoTmr=setTimeout(advance, 2000);
 }
 
 function advance(){
   clearTimeout(autoTmr);
-  stopAudio();
-  resetListenBtn();
+  const btn = document.getElementById('listenBtn');
+  stopAudio(btn);
   if(!answered){document.getElementById('feedbackMsg').textContent='⚠️ Önce cevap seçin!';return;}
   idx++;render();
 }
 
 function resetGame(){
   clearTimeout(autoTmr);
-  stopAudio();
-  resetListenBtn();
+  const btn = document.getElementById('listenBtn');
+  stopAudio(btn);
   setQ=genSet();idx=0;score=0;answered=false;
   document.getElementById('scoreNum').textContent='0';
   render();
@@ -671,7 +655,7 @@ function resetGame(){
 
 document.getElementById('nextBtn').addEventListener('click',advance);
 document.getElementById('resetBtn').addEventListener('click',resetGame);
-document.getElementById('listenBtn').addEventListener('click',function(){ toggleListen(this); });
+document.getElementById('listenBtn').addEventListener('click',function(){ playCurrentSurah(this); });
 window.addEventListener('resize',adjustFontSize);
 
 setQ=genSet();
