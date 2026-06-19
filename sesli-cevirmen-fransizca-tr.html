@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sesli Çevirmen — Türkçe ⇄ Français</title>
+<style>
+  :root{
+    --bg:#0e1420;
+    --card:#171f2e;
+    --line:#27324a;
+    --text:#eaf0fa;
+    --dim:#8d99b0;
+    --tr:#e35d6a;      /* Türkçe tarafı: kırmızı ton */
+    --fr:#5b8cff;      /* Fransızca tarafı: mavi ton */
+    --ok:#5dc98a;
+    --radius:16px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    min-height:100vh;
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    display:flex;flex-direction:column;align-items:center;
+    padding:20px 14px 30px;
+  }
+  h1{font-size:20px;font-weight:700;letter-spacing:.3px;margin-bottom:4px;text-align:center}
+  h1 .arrows{color:var(--dim);font-weight:400}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:22px;text-align:center}
+
+  /* ---- Konuşma düğmeleri ---- */
+  .btnRow{
+    display:flex;gap:14px;width:100%;max-width:560px;margin-bottom:18px;
+  }
+  .talkBtn{
+    flex:1;
+    border:none;border-radius:var(--radius);
+    padding:18px 10px;
+    font-size:17px;font-weight:700;color:#fff;
+    cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+    transition:transform .1s, box-shadow .2s, opacity .2s;
+    position:relative;overflow:hidden;
+  }
+  .talkBtn small{font-size:11px;font-weight:400;opacity:.85}
+  .talkBtn:active{transform:scale(.97)}
+  .talkBtn:disabled{opacity:.45;cursor:not-allowed}
+  #btnTR{background:linear-gradient(145deg,#c84653,#e35d6a)}
+  #btnFR{background:linear-gradient(145deg,#3a5fd0,#5b8cff)}
+  #btnTR.listening{box-shadow:0 0 0 4px rgba(227,93,106,.35),0 0 26px rgba(227,93,106,.5)}
+  #btnFR.listening{box-shadow:0 0 0 4px rgba(91,140,255,.35),0 0 26px rgba(91,140,255,.5)}
+
+  /* ---- Mikrofon göstergesi ---- */
+  #micPanel{
+    display:none;
+    flex-direction:column;align-items:center;gap:10px;
+    margin-bottom:18px;
+  }
+  #micPanel.show{display:flex}
+  .micCircle{
+    width:96px;height:96px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:42px;
+    background:var(--card);
+    border:2px solid var(--line);
+    position:relative;
+  }
+  .micCircle::before,.micCircle::after{
+    content:"";position:absolute;inset:-2px;border-radius:50%;
+    border:2px solid var(--micColor,#fff);
+    animation:ring 1.6s ease-out infinite;
+    opacity:0;
+  }
+  .micCircle::after{animation-delay:.8s}
+  @keyframes ring{
+    0%{transform:scale(1);opacity:.7}
+    100%{transform:scale(1.55);opacity:0}
+  }
+  #micLabel{font-size:14px;color:var(--dim)}
+  #micLabel b{color:var(--text)}
+  #stopBtn{
+    background:var(--card);border:1px solid var(--line);color:var(--text);
+    padding:7px 18px;border-radius:20px;font-size:13px;cursor:pointer;
+  }
+  #stopBtn:hover{border-color:var(--dim)}
+
+  /* ---- Konuşma kartları ---- */
+  #log{
+    width:100%;max-width:560px;
+    display:flex;flex-direction:column;gap:12px;
+  }
+  .pair{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    overflow:hidden;
+    animation:slideIn .25s ease;
+  }
+  @keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .pair .row{
+    padding:12px 16px;display:flex;gap:10px;align-items:flex-start;
+  }
+  .pair .row + .row{border-top:1px dashed var(--line)}
+  .lang-tag{
+    font-size:10px;font-weight:700;letter-spacing:1px;
+    padding:3px 8px;border-radius:8px;color:#fff;flex-shrink:0;margin-top:2px;
+  }
+  .lang-tag.tr{background:var(--tr)}
+  .lang-tag.fr{background:var(--fr)}
+  .pair .txt{flex:1;font-size:15px;line-height:1.5;word-break:break-word}
+  .pair .txt.pending{color:var(--dim);font-style:italic}
+  .speakBtn{
+    background:none;border:none;cursor:pointer;font-size:18px;
+    color:var(--dim);flex-shrink:0;padding:2px;border-radius:8px;
+  }
+  .speakBtn:hover{color:var(--text)}
+  .speakBtn.speaking{color:var(--ok);animation:blink 1s infinite}
+  @keyframes blink{50%{opacity:.4}}
+
+  #status{
+    margin-top:16px;font-size:12px;color:var(--dim);text-align:center;
+    min-height:18px;max-width:560px;line-height:1.5;
+  }
+  #status.err{color:#ef8f8f}
+
+  .empty-hint{
+    color:var(--dim);font-size:13px;text-align:center;
+    border:1px dashed var(--line);border-radius:var(--radius);
+    padding:26px 18px;line-height:1.7;
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .micCircle::before,.micCircle::after{animation:none;opacity:.3}
+    .pair{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<h1>🎙️ Sesli Çevirmen <span class="arrows">·</span> Türkçe ⇄ Français</h1>
+<div class="sub">Düğmeye bas, konuş — yazıya döker, çevirir ve karşı dilde seslendirir.</div>
+
+<div class="btnRow">
+  <button class="talkBtn" id="btnTR">
+    🇹🇷 Türkçe Konuş
+    <small>Fransızcaya çevrilir ve okunur</small>
+  </button>
+  <button class="talkBtn" id="btnFR">
+    🇫🇷 Parler français
+    <small>Türkçeye çevrilir ve okunur</small>
+  </button>
+</div>
+
+<div id="micPanel">
+  <div class="micCircle" id="micCircle">🎤</div>
+  <div id="micLabel">Dinleniyor… <b id="micLang"></b></div>
+  <button id="stopBtn">⏹ Bitir</button>
+</div>
+
+<div id="log">
+  <div class="empty-hint" id="emptyHint">
+    Henüz konuşma yok.<br>
+    🇹🇷 düğmesiyle Türkçe konuşun → Fransızca dinleyin.<br>
+    🇫🇷 düğmesiyle Fransızca konuşun → Türkçe dinleyin.
+  </div>
+</div>
+
+<div id="status"></div>
+
+<script>
+(function(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const status = document.getElementById("status");
+  const log = document.getElementById("log");
+  const micPanel = document.getElementById("micPanel");
+  const micCircle = document.getElementById("micCircle");
+  const micLang = document.getElementById("micLang");
+  const btnTR = document.getElementById("btnTR");
+  const btnFR = document.getElementById("btnFR");
+  const stopBtn = document.getElementById("stopBtn");
+
+  let recog = null;
+  let busy = false;
+  let voices = [];
+
+  function setStatus(msg, isErr){
+    status.textContent = msg || "";
+    status.className = isErr ? "err" : "";
+  }
+
+  if(!SR){
+    setStatus("Bu tarayıcı ses tanımayı desteklemiyor. Lütfen Chrome, Edge veya Android Chrome kullanın.", true);
+    btnTR.disabled = btnFR.disabled = true;
+  }
+
+  /* ---------- SESLENDİRME ---------- */
+  function loadVoices(){ voices = speechSynthesis.getVoices(); }
+  loadVoices();
+  if(speechSynthesis.onvoiceschanged !== undefined)
+    speechSynthesis.onvoiceschanged = loadVoices;
+
+  function pickVoice(lang){
+    // tam eşleşme > dil öneki eşleşmesi
+    return voices.find(v => v.lang.toLowerCase() === lang.toLowerCase())
+        || voices.find(v => v.lang.toLowerCase().startsWith(lang.slice(0,2).toLowerCase()))
+        || null;
+  }
+
+  function speak(text, lang, btn){
+    return new Promise(resolve => {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = lang;
+      const v = pickVoice(lang);
+      if(v) u.voice = v;
+      u.rate = 1;
+      if(btn) btn.classList.add("speaking");
+      u.onend = u.onerror = () => { if(btn) btn.classList.remove("speaking"); resolve(); };
+      speechSynthesis.speak(u);
+    });
+  }
+
+  /* ---------- ÇEVİRİ ---------- */
+  async function translate(text, from, to){
+    // 1. deneme: Google'ın açık gtx ucu
+    try{
+      const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl="
+        + from + "&tl=" + to + "&dt=t&q=" + encodeURIComponent(text);
+      const r = await fetch(url);
+      if(r.ok){
+        const d = await r.json();
+        const out = (d[0]||[]).map(p => p[0]).join("").trim();
+        if(out) return out;
+      }
+    }catch(e){ /* yedeğe geç */ }
+
+    // 2. deneme: MyMemory (anahtarsız ücretsiz)
+    const r2 = await fetch("https://api.mymemory.translated.net/get?q="
+      + encodeURIComponent(text) + "&langpair=" + from + "|" + to);
+    if(!r2.ok) throw new Error("Çeviri servisi yanıt vermedi");
+    const d2 = await r2.json();
+    const out2 = d2 && d2.responseData && d2.responseData.translatedText;
+    if(!out2) throw new Error("Çeviri alınamadı");
+    return out2;
+  }
+
+  /* ---------- KART OLUŞTURMA ---------- */
+  function addPair(srcLang){
+    const hint = document.getElementById("emptyHint");
+    if(hint) hint.remove();
+
+    const isTR = srcLang === "tr";
+    const pair = document.createElement("div");
+    pair.className = "pair";
+    pair.innerHTML = `
+      <div class="row">
+        <span class="lang-tag ${isTR?'tr':'fr'}">${isTR?'TR':'FR'}</span>
+        <div class="txt pending src">dinleniyor…</div>
+        <button class="speakBtn srcSpeak" title="Tekrar dinle">🔊</button>
+      </div>
+      <div class="row">
+        <span class="lang-tag ${isTR?'fr':'tr'}">${isTR?'FR':'TR'}</span>
+        <div class="txt pending dst">çeviri bekleniyor…</div>
+        <button class="speakBtn dstSpeak" title="Tekrar dinle">🔊</button>
+      </div>`;
+    log.prepend(pair);
+    return pair;
+  }
+
+  /* ---------- ANA AKIŞ ---------- */
+  function listen(srcLang){
+    if(busy || !SR) return;
+    busy = true;
+    speechSynthesis.cancel();
+
+    const isTR = srcLang === "tr";
+    const recLang = isTR ? "tr-TR" : "fr-FR";
+    const dstLang = isTR ? "fr"    : "tr";
+    const dstTTS  = isTR ? "fr-FR" : "tr-TR";
+    const srcTTS  = recLang;
+    const activeBtn = isTR ? btnTR : btnFR;
+
+    btnTR.disabled = btnFR.disabled = true;
+    activeBtn.disabled = false;
+    activeBtn.classList.add("listening");
+    micPanel.classList.add("show");
+    micCircle.style.setProperty("--micColor", isTR ? "var(--tr)" : "var(--fr)");
+    micLang.textContent = isTR ? "Türkçe" : "Français";
+    setStatus(isTR ? "Konuşun, sizi dinliyorum…" : "Parlez, je vous écoute…");
+
+    const pair = addPair(srcLang);
+    const srcEl = pair.querySelector(".src");
+    const dstEl = pair.querySelector(".dst");
+
+    recog = new SR();
+    recog.lang = recLang;
+    recog.interimResults = true;
+    recog.continuous = false;
+    recog.maxAlternatives = 1;
+
+    let finalText = "";
+
+    recog.onresult = e => {
+      let interim = "";
+      for(let i = e.resultIndex; i < e.results.length; i++){
+        if(e.results[i].isFinal) finalText += e.results[i][0].transcript;
+        else interim += e.results[i][0].transcript;
+      }
+      const show = (finalText + " " + interim).trim();
+      if(show){ srcEl.textContent = show; srcEl.classList.remove("pending"); }
+    };
+
+    recog.onerror = e => {
+      cleanupMic();
+      if(e.error === "not-allowed"){
+        setStatus("Mikrofon izni reddedildi. Tarayıcı adres çubuğundan mikrofona izin verin.", true);
+      } else if(e.error === "no-speech"){
+        setStatus("Ses algılanamadı, tekrar deneyin.", true);
+      } else {
+        setStatus("Ses tanıma hatası: " + e.error, true);
+      }
+      srcEl.textContent = "— ses alınamadı —";
+      dstEl.textContent = "—";
+      busy = false;
+      enableButtons();
+    };
+
+    recog.onend = async () => {
+      cleanupMic();
+      const text = finalText.trim() || srcEl.textContent.trim();
+      if(!text || srcEl.classList.contains("pending")){
+        srcEl.textContent = "— ses alınamadı —";
+        dstEl.textContent = "—";
+        setStatus("Bir şey duyamadım, tekrar deneyin.", true);
+        busy = false; enableButtons();
+        return;
+      }
+      srcEl.textContent = text;
+      srcEl.classList.remove("pending");
+
+      // tekrar dinle düğmeleri
+      pair.querySelector(".srcSpeak").onclick = ev => speak(text, srcTTS, ev.currentTarget);
+
+      setStatus(isTR ? "Çevriliyor…" : "Traduction…");
+      dstEl.textContent = isTR ? "çevriliyor…" : "traduction en cours…";
+      try{
+        const translated = await translate(text, srcLang, dstLang);
+        dstEl.textContent = translated;
+        dstEl.classList.remove("pending");
+        pair.querySelector(".dstSpeak").onclick = ev => speak(translated, dstTTS, ev.currentTarget);
+        setStatus(isTR ? "Seslendiriliyor… 🔊" : "Lecture… 🔊");
+        await speak(translated, dstTTS, pair.querySelector(".dstSpeak"));
+        setStatus("");
+      }catch(err){
+        dstEl.textContent = "Çeviri alınamadı.";
+        setStatus("Çeviri hatası: " + err.message + " (internet bağlantısını kontrol edin)", true);
+      }
+      busy = false;
+      enableButtons();
+    };
+
+    try{ recog.start(); }
+    catch(e){
+      cleanupMic();
+      setStatus("Mikrofon başlatılamadı: " + e.message, true);
+      busy = false; enableButtons();
+    }
+  }
+
+  function cleanupMic(){
+    micPanel.classList.remove("show");
+    btnTR.classList.remove("listening");
+    btnFR.classList.remove("listening");
+  }
+  function enableButtons(){
+    btnTR.disabled = btnFR.disabled = !SR ? true : false;
+  }
+
+  btnTR.addEventListener("click", () => {
+    if(btnTR.classList.contains("listening")){ recog && recog.stop(); return; }
+    listen("tr");
+  });
+  btnFR.addEventListener("click", () => {
+    if(btnFR.classList.contains("listening")){ recog && recog.stop(); return; }
+    listen("fr");
+  });
+  stopBtn.addEventListener("click", () => recog && recog.stop());
+})();
+</script>
+</body>
+</html>
