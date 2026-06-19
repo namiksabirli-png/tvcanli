@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Open Stream — World TV Channels</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
+<style>
+  :root{
+    --bg:#10141c;
+    --bg-2:#161c27;
+    --bg-3:#1d2533;
+    --line:#2a3447;
+    --text:#e8edf5;
+    --text-dim:#8b96a8;
+    --amber:#f5b942;
+    --amber-dim:#b8862a;
+    --live:#e35d5d;
+    --ok:#5dc98a;
+    --radius:10px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  body[dir="rtl"]{font-family:"Segoe UI","Tahoma",system-ui,sans-serif}
+  /* ---------- TOP BAR ---------- */
+  header{
+    display:flex;align-items:center;gap:14px;
+    padding:12px 18px;
+    background:var(--bg-2);
+    border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  .logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:.5px}
+  .logo .dot{width:10px;height:10px;border-radius:50%;background:var(--live);box-shadow:0 0 8px var(--live);animation:pulse 1.6s infinite}
+  @keyframes pulse{50%{opacity:.4}}
+  .logo small{color:var(--text-dim);font-weight:400;font-size:12px;margin-left:4px}
+  body[dir="rtl"] .logo small{margin-left:0;margin-right:4px}
+  #search{
+    flex:1;min-width:160px;max-width:340px;
+    background:var(--bg-3);border:1px solid var(--line);
+    color:var(--text);padding:8px 12px;border-radius:var(--radius);
+    font-size:14px;outline:none;
+  }
+  #search:focus{border-color:var(--amber)}
+
+  /* Language selector */
+  .lang-wrap{position:relative}
+  #langBtn{
+    display:flex;align-items:center;gap:7px;
+    background:var(--bg-3);color:var(--text);border:1px solid var(--line);
+    padding:8px 12px;border-radius:var(--radius);
+    font-size:14px;font-weight:500;cursor:pointer;
+    transition:border-color .15s;
+  }
+  #langBtn:hover{border-color:var(--amber)}
+  #langBtn .chev{font-size:10px;color:var(--text-dim);transition:transform .2s}
+  #langBtn.open .chev{transform:rotate(180deg)}
+  #langMenu{
+    position:absolute;top:calc(100% + 6px);right:0;
+    background:var(--bg-2);border:1px solid var(--line);
+    border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,.45);
+    min-width:180px;overflow:hidden;z-index:60;display:none;
+  }
+  body[dir="rtl"] #langMenu{right:auto;left:0}
+  #langMenu.open{display:block}
+  .lang-item{
+    display:flex;align-items:center;gap:10px;
+    padding:9px 14px;cursor:pointer;font-size:14px;
+  }
+  .lang-item:hover{background:var(--bg-3)}
+  .lang-item.active{background:var(--bg-3);box-shadow:inset 3px 0 0 var(--amber)}
+  body[dir="rtl"] .lang-item.active{box-shadow:inset -3px 0 0 var(--amber)}
+  .lang-item .lflag{font-size:17px;width:22px;text-align:center}
+
+  #updateBtn{
+    display:flex;align-items:center;gap:8px;
+    background:var(--amber);color:#1a1206;border:none;
+    padding:9px 16px;border-radius:var(--radius);
+    font-size:14px;font-weight:600;cursor:pointer;
+    transition:filter .15s;
+  }
+  #updateBtn:hover{filter:brightness(1.1)}
+  #updateBtn:disabled{opacity:.55;cursor:wait}
+  #updateBtn .spin{display:inline-block;animation:rot 1s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  #lastUpdate{font-size:12px;color:var(--text-dim)}
+
+  /* ---------- MAIN LAYOUT ---------- */
+  main{flex:1;display:flex;min-height:0}
+  #countries{
+    width:250px;min-width:200px;
+    overflow-y:auto;
+    border-right:1px solid var(--line);
+    background:var(--bg-2);
+  }
+  body[dir="rtl"] #countries{border-right:none;border-left:1px solid var(--line)}
+  .col-title{
+    position:sticky;top:0;background:var(--bg-2);
+    padding:10px 14px;font-size:11px;letter-spacing:1.5px;
+    text-transform:uppercase;color:var(--text-dim);
+    border-bottom:1px solid var(--line);z-index:2;
+  }
+  .country{
+    display:flex;align-items:center;gap:10px;
+    padding:9px 14px;cursor:pointer;font-size:14px;
+    border-bottom:1px solid rgba(42,52,71,.4);
+  }
+  .country:hover{background:var(--bg-3)}
+  .country.active{background:var(--bg-3);box-shadow:inset 3px 0 0 var(--amber)}
+  body[dir="rtl"] .country.active{box-shadow:inset -3px 0 0 var(--amber)}
+  .country .flag{font-size:18px;width:24px;text-align:center}
+  .country .cname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .country .count{font-size:11px;color:var(--text-dim);font-variant-numeric:tabular-nums}
+
+  #channels{
+    width:300px;min-width:230px;
+    overflow-y:auto;
+    border-right:1px solid var(--line);
+    background:var(--bg);
+  }
+  body[dir="rtl"] #channels{border-right:none;border-left:1px solid var(--line)}
+  .channel{
+    display:flex;align-items:center;gap:10px;
+    padding:9px 14px;cursor:pointer;font-size:14px;
+    border-bottom:1px solid rgba(42,52,71,.35);
+  }
+  .channel:hover{background:var(--bg-3)}
+  .channel.active{background:var(--bg-3);box-shadow:inset 3px 0 0 var(--live)}
+  body[dir="rtl"] .channel.active{box-shadow:inset -3px 0 0 var(--live)}
+  .channel img{width:30px;height:30px;object-fit:contain;border-radius:5px;background:#fff;flex-shrink:0}
+  .channel .noimg{width:30px;height:30px;border-radius:5px;background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--text-dim);flex-shrink:0}
+  .channel .chname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .channel .alt{font-size:10px;color:var(--text-dim);background:var(--bg-3);padding:2px 6px;border-radius:6px}
+
+  #playerArea{
+    flex:1;display:flex;flex-direction:column;
+    min-width:0;background:#0a0d13;
+  }
+  #playerHead{
+    display:flex;align-items:center;gap:12px;
+    padding:10px 16px;border-bottom:1px solid var(--line);
+    background:var(--bg-2);min-height:52px;
+  }
+  #nowTitle{font-weight:600;font-size:15px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #streamInfo{font-size:12px;color:var(--text-dim);white-space:nowrap}
+  .badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;white-space:nowrap}
+  .badge.live{background:rgba(227,93,93,.15);color:var(--live);border:1px solid rgba(227,93,93,.4)}
+  .badge.try{background:rgba(245,185,66,.12);color:var(--amber);border:1px solid rgba(245,185,66,.35)}
+  .badge.err{background:rgba(139,150,168,.12);color:var(--text-dim);border:1px solid var(--line)}
+  #videoWrap{flex:1;display:flex;align-items:center;justify-content:center;position:relative;min-height:0}
+  video{width:100%;height:100%;max-height:100%;background:#000;outline:none}
+  #placeholder{
+    text-align:center;color:var(--text-dim);padding:30px;max-width:420px;
+  }
+  #placeholder .tv{font-size:54px;margin-bottom:14px;filter:grayscale(.3)}
+  #placeholder h2{color:var(--text);font-size:18px;margin-bottom:8px;font-weight:600}
+  #placeholder p{font-size:13px;line-height:1.6}
+  #overlayMsg{
+    position:absolute;inset:0;display:none;
+    align-items:center;justify-content:center;flex-direction:column;gap:12px;
+    background:rgba(10,13,19,.85);color:var(--text);font-size:14px;text-align:center;padding:20px;
+  }
+  #overlayMsg .spin{font-size:28px;display:inline-block;animation:rot 1s linear infinite}
+  #overlayMsg button{
+    background:var(--bg-3);border:1px solid var(--line);color:var(--text);
+    padding:8px 16px;border-radius:var(--radius);cursor:pointer;font-size:13px;
+  }
+  #overlayMsg button:hover{border-color:var(--amber)}
+
+  footer{
+    padding:7px 18px;background:var(--bg-2);border-top:1px solid var(--line);
+    font-size:12px;color:var(--text-dim);display:flex;gap:16px;align-items:center;flex-wrap:wrap;
+  }
+  footer .stat b{color:var(--text)}
+  #toast{
+    position:fixed;bottom:54px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--bg-3);border:1px solid var(--amber);color:var(--text);
+    padding:10px 18px;border-radius:var(--radius);font-size:13px;
+    opacity:0;pointer-events:none;transition:.3s;z-index:50;max-width:90vw;text-align:center;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .loading-block{padding:24px;text-align:center;color:var(--text-dim);font-size:13px}
+  .empty{padding:24px;text-align:center;color:var(--text-dim);font-size:13px;line-height:1.6}
+
+  ::-webkit-scrollbar{width:9px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+  ::-webkit-scrollbar-thumb:hover{background:#3a4660}
+
+  @media (max-width:860px){
+    main{flex-direction:column;overflow-y:auto}
+    #countries,#channels{width:100%;min-width:0;max-height:240px;border-right:none;border-bottom:1px solid var(--line)}
+    body[dir="rtl"] #countries,body[dir="rtl"] #channels{border-left:none;border-bottom:1px solid var(--line)}
+    #playerArea{min-height:300px}
+    header{gap:8px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .logo .dot,#updateBtn .spin,#overlayMsg .spin{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="dot"></span><span id="brandName">OPEN STREAM</span><small id="brandTag">world channels</small></div>
+  <input id="search" type="text" placeholder="Search country or channel…">
+  <div class="lang-wrap">
+    <button id="langBtn"><span id="langBtnFlag">🇬🇧</span><span id="langBtnName">English</span><span class="chev">▼</span></button>
+    <div id="langMenu"></div>
+  </div>
+  <button id="updateBtn" title="Re-downloads the channel database; changed / new stream addresses are updated">
+    <span id="updIcon">⟳</span> <span id="updLabel">Update channels</span>
+  </button>
+  <span id="lastUpdate"></span>
+</header>
+
+<main>
+  <nav id="countries">
+    <div class="col-title" id="countriesTitle">Countries</div>
+    <div id="countryList"><div class="loading-block" id="loadingMsg">Downloading channel list…</div></div>
+  </nav>
+
+  <section id="channels">
+    <div class="col-title" id="chColTitle">Channels</div>
+    <div id="channelList"><div class="empty" id="pickCountryMsg">Select a country on the left.<br>Channels will be listed here.</div></div>
+  </section>
+
+  <section id="playerArea">
+    <div id="playerHead">
+      <span id="nowTitle">No stream selected</span>
+      <span id="streamInfo"></span>
+      <span id="liveBadge" class="badge err" style="display:none"></span>
+    </div>
+    <div id="videoWrap">
+      <div id="placeholder">
+        <div class="tv">📺</div>
+        <h2 id="phTitle">Ready to watch</h2>
+        <p id="phText">Pick a country, then click a channel. If a stream doesn't open, the app automatically tries that channel's other stream addresses. For channels whose address has changed completely, use the <b style="color:var(--amber)" id="phUpdate">Update channels</b> button above.</p>
+      </div>
+      <video id="video" controls playsinline style="display:none"></video>
+      <div id="overlayMsg"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span class="stat"><span id="statCountriesLbl">Countries</span>: <b id="statCountries">–</b></span>
+  <span class="stat"><span id="statChannelsLbl">Watchable channels</span>: <b id="statChannels">–</b></span>
+  <span class="stat"><span id="statStreamsLbl">Stream addresses</span>: <b id="statStreams">–</b></span>
+  <span style="margin-left:auto" id="sourceNote">Source: iptv-org community database (free public streams only)</span>
+</footer>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+  const API = "https://iptv-org.github.io/api";
+
+  /* ---------------- TRANSLATIONS ---------------- */
+  const I18N = {
+    en:{ flag:"🇬🇧", label:"English", dir:"ltr", htmlLang:"en",
+      brandName:"OPEN STREAM", brandTag:"world channels",
+      title:"Open Stream — World TV Channels",
+      search:"Search country or channel…",
+      update:"Update channels",
+      updateTitle:"Re-downloads the channel database; changed / new stream addresses are updated",
+      countries:"Countries", channels:"Channels",
+      loading:"Downloading channel list…",
+      pickCountry:"Select a country on the left.<br>Channels will be listed here.",
+      channelsOf:"Channels", // suffix
+      noStreamSel:"No stream selected",
+      phTitle:"Ready to watch",
+      phText:'Pick a country, then click a channel. If a stream doesn\'t open, the app automatically tries that channel\'s other stream addresses. For channels whose address has changed completely, use the <b style="color:var(--amber)">Update channels</b> button above.',
+      statCountries:"Countries", statChannels:"Watchable channels", statStreams:"Stream addresses",
+      source:"Source: iptv-org community database (free public streams only)",
+      lastUpdate:"Last update", sources:"sources",
+      noCountry:"No matching country.", noChannel:"No matching channel.",
+      updating:"Updating channel database…",
+      updated:(n)=>`Updated ✓  ${n} new/changed stream addresses fetched, old ones cleaned.`,
+      loadFail:'List could not be downloaded.<br>Check your internet connection and press <b>Update channels</b>.',
+      dataFail:"Could not download data",
+      connecting:"connecting…", live:"● LIVE", noStream:"no stream",
+      connectingTo:(i,t)=>`Connecting to stream… (source ${i}/${t})`,
+      source_n:(i,t)=>`source ${i}/${t}`,
+      noWorking:(name)=>`No working stream address found for <b>${name}</b> right now.`,
+      addressChanged:"This channel's address may have changed. Use the button below to refresh the database; if the community added a new address, it'll come automatically.",
+      sourceFailed:(i,t)=>`Source ${i}/${t} didn't open, trying next…`,
+      noHls:"Your browser doesn't support HLS streams.",
+      apiNoResp:"API did not respond"
+    },
+    tr:{ flag:"🇹🇷", label:"Türkçe", dir:"ltr", htmlLang:"tr",
+      brandName:"AÇIK YAYIN", brandTag:"dünya kanalları",
+      title:"Açık Yayın — Dünya TV Kanalları",
+      search:"Ülke veya kanal ara…",
+      update:"Kanalları Güncelle",
+      updateTitle:"Kanal veritabanını yeniden indirir; değişen / yeni yayın adresleri güncellenir",
+      countries:"Ülkeler", channels:"Kanallar",
+      loading:"Kanal listesi indiriliyor…",
+      pickCountry:"Soldan bir ülke seçin.<br>Kanallar burada listelenecek.",
+      channelsOf:"Kanallar",
+      noStreamSel:"Yayın seçilmedi",
+      phTitle:"İzlemeye hazır",
+      phText:'Bir ülke seçin, ardından kanala tıklayın. Yayın açılmazsa uygulama o kanalın diğer yayın adreslerini otomatik dener. Adresi tamamen değişen kanallar için üstteki <b style="color:var(--amber)">Kanalları Güncelle</b> düğmesini kullanın.',
+      statCountries:"Ülke", statChannels:"İzlenebilir kanal", statStreams:"Yayın adresi",
+      source:"Kaynak: iptv-org topluluk veritabanı (yalnızca halka açık ücretsiz yayınlar)",
+      lastUpdate:"Son güncelleme", sources:"kaynak",
+      noCountry:"Eşleşen ülke yok.", noChannel:"Eşleşen kanal yok.",
+      updating:"Kanal veritabanı güncelleniyor…",
+      updated:(n)=>`Güncellendi ✓  ${n} yeni/değişen yayın adresi alındı, eski adresler temizlendi.`,
+      loadFail:'Liste indirilemedi.<br>İnternet bağlantınızı kontrol edip <b>Kanalları Güncelle</b> düğmesine basın.',
+      dataFail:"Veri indirilemedi",
+      connecting:"bağlanıyor…", live:"● CANLI", noStream:"yayın yok",
+      connectingTo:(i,t)=>`Yayına bağlanılıyor… (kaynak ${i}/${t})`,
+      source_n:(i,t)=>`kaynak ${i}/${t}`,
+      noWorking:(name)=>`<b>${name}</b> için şu an çalışan yayın adresi bulunamadı.`,
+      addressChanged:"Bu kanalın adresi değişmiş olabilir. Veritabanını yenilemek için aşağıdaki düğmeyi kullanın; topluluk yeni adresi eklediyse otomatik gelir.",
+      sourceFailed:(i,t)=>`Kaynak ${i}/${t} açılmadı, sıradaki deneniyor…`,
+      noHls:"Tarayıcınız HLS yayınlarını desteklemiyor.",
+      apiNoResp:"API yanıt vermedi"
+    },
+    de:{ flag:"🇩🇪", label:"Deutsch", dir:"ltr", htmlLang:"de",
+      brandName:"OFFENER STREAM", brandTag:"Weltsender",
+      title:"Offener Stream — TV-Sender der Welt",
+      search:"Land oder Sender suchen…",
+      update:"Sender aktualisieren",
+      updateTitle:"Lädt die Senderdatenbank neu; geänderte / neue Stream-Adressen werden aktualisiert",
+      countries:"Länder", channels:"Sender",
+      loading:"Senderliste wird heruntergeladen…",
+      pickCountry:"Wählen Sie links ein Land.<br>Die Sender werden hier aufgelistet.",
+      channelsOf:"Sender",
+      noStreamSel:"Kein Stream ausgewählt",
+      phTitle:"Bereit zum Ansehen",
+      phText:'Wählen Sie ein Land und klicken Sie dann auf einen Sender. Öffnet sich ein Stream nicht, probiert die App automatisch die anderen Stream-Adressen dieses Senders. Bei Sendern mit komplett geänderter Adresse nutzen Sie oben die Schaltfläche <b style="color:var(--amber)">Sender aktualisieren</b>.',
+      statCountries:"Länder", statChannels:"Verfügbare Sender", statStreams:"Stream-Adressen",
+      source:"Quelle: iptv-org Community-Datenbank (nur kostenlose öffentliche Streams)",
+      lastUpdate:"Letzte Aktualisierung", sources:"Quellen",
+      noCountry:"Kein passendes Land.", noChannel:"Kein passender Sender.",
+      updating:"Senderdatenbank wird aktualisiert…",
+      updated:(n)=>`Aktualisiert ✓  ${n} neue/geänderte Stream-Adressen abgerufen, alte bereinigt.`,
+      loadFail:'Liste konnte nicht heruntergeladen werden.<br>Prüfen Sie Ihre Internetverbindung und drücken Sie <b>Sender aktualisieren</b>.',
+      dataFail:"Daten konnten nicht heruntergeladen werden",
+      connecting:"verbinde…", live:"● LIVE", noStream:"kein Stream",
+      connectingTo:(i,t)=>`Verbindung zum Stream… (Quelle ${i}/${t})`,
+      source_n:(i,t)=>`Quelle ${i}/${t}`,
+      noWorking:(name)=>`Für <b>${name}</b> wurde derzeit keine funktionierende Stream-Adresse gefunden.`,
+      addressChanged:"Die Adresse dieses Senders hat sich möglicherweise geändert. Aktualisieren Sie die Datenbank mit der Schaltfläche unten; wenn die Community eine neue Adresse hinzugefügt hat, kommt sie automatisch.",
+      sourceFailed:(i,t)=>`Quelle ${i}/${t} öffnete nicht, nächste wird versucht…`,
+      noHls:"Ihr Browser unterstützt keine HLS-Streams.",
+      apiNoResp:"API antwortet nicht"
+    },
+    fr:{ flag:"🇫🇷", label:"Français", dir:"ltr", htmlLang:"fr",
+      brandName:"FLUX OUVERT", brandTag:"chaînes du monde",
+      title:"Flux Ouvert — Chaînes TV du monde",
+      search:"Rechercher un pays ou une chaîne…",
+      update:"Mettre à jour",
+      updateTitle:"Retélécharge la base de données des chaînes ; les adresses de flux modifiées / nouvelles sont mises à jour",
+      countries:"Pays", channels:"Chaînes",
+      loading:"Téléchargement de la liste des chaînes…",
+      pickCountry:"Sélectionnez un pays à gauche.<br>Les chaînes seront listées ici.",
+      channelsOf:"Chaînes",
+      noStreamSel:"Aucun flux sélectionné",
+      phTitle:"Prêt à regarder",
+      phText:'Choisissez un pays, puis cliquez sur une chaîne. Si un flux ne s\'ouvre pas, l\'application essaie automatiquement les autres adresses de cette chaîne. Pour les chaînes dont l\'adresse a complètement changé, utilisez le bouton <b style="color:var(--amber)">Mettre à jour</b> ci-dessus.',
+      statCountries:"Pays", statChannels:"Chaînes disponibles", statStreams:"Adresses de flux",
+      source:"Source : base de données communautaire iptv-org (flux publics gratuits uniquement)",
+      lastUpdate:"Dernière mise à jour", sources:"sources",
+      noCountry:"Aucun pays correspondant.", noChannel:"Aucune chaîne correspondante.",
+      updating:"Mise à jour de la base de données des chaînes…",
+      updated:(n)=>`Mis à jour ✓  ${n} adresses de flux nouvelles/modifiées récupérées, anciennes nettoyées.`,
+      loadFail:'La liste n\'a pas pu être téléchargée.<br>Vérifiez votre connexion Internet et appuyez sur <b>Mettre à jour</b>.',
+      dataFail:"Impossible de télécharger les données",
+      connecting:"connexion…", live:"● EN DIRECT", noStream:"aucun flux",
+      connectingTo:(i,t)=>`Connexion au flux… (source ${i}/${t})`,
+      source_n:(i,t)=>`source ${i}/${t}`,
+      noWorking:(name)=>`Aucune adresse de flux fonctionnelle trouvée pour <b>${name}</b> pour le moment.`,
+      addressChanged:"L'adresse de cette chaîne a peut-être changé. Utilisez le bouton ci-dessous pour actualiser la base ; si la communauté a ajouté une nouvelle adresse, elle apparaîtra automatiquement.",
+      sourceFailed:(i,t)=>`La source ${i}/${t} ne s'est pas ouverte, essai de la suivante…`,
+      noHls:"Votre navigateur ne prend pas en charge les flux HLS.",
+      apiNoResp:"L'API n'a pas répondu"
+    },
+    it:{ flag:"🇮🇹", label:"Italiano", dir:"ltr", htmlLang:"it",
+      brandName:"FLUSSO APERTO", brandTag:"canali del mondo",
+      title:"Flusso Aperto — Canali TV del mondo",
+      search:"Cerca paese o canale…",
+      update:"Aggiorna canali",
+      updateTitle:"Riscarica il database dei canali; gli indirizzi di streaming modificati / nuovi vengono aggiornati",
+      countries:"Paesi", channels:"Canali",
+      loading:"Download dell'elenco canali…",
+      pickCountry:"Seleziona un paese a sinistra.<br>I canali verranno elencati qui.",
+      channelsOf:"Canali",
+      noStreamSel:"Nessun flusso selezionato",
+      phTitle:"Pronto per guardare",
+      phText:'Scegli un paese, poi clicca su un canale. Se un flusso non si apre, l\'app prova automaticamente gli altri indirizzi di quel canale. Per i canali il cui indirizzo è cambiato completamente, usa il pulsante <b style="color:var(--amber)">Aggiorna canali</b> in alto.',
+      statCountries:"Paesi", statChannels:"Canali visibili", statStreams:"Indirizzi di flusso",
+      source:"Fonte: database della community iptv-org (solo flussi pubblici gratuiti)",
+      lastUpdate:"Ultimo aggiornamento", sources:"fonti",
+      noCountry:"Nessun paese corrispondente.", noChannel:"Nessun canale corrispondente.",
+      updating:"Aggiornamento del database dei canali…",
+      updated:(n)=>`Aggiornato ✓  ${n} indirizzi di flusso nuovi/modificati recuperati, vecchi rimossi.`,
+      loadFail:'Impossibile scaricare l\'elenco.<br>Controlla la connessione Internet e premi <b>Aggiorna canali</b>.',
+      dataFail:"Impossibile scaricare i dati",
+      connecting:"connessione…", live:"● IN DIRETTA", noStream:"nessun flusso",
+      connectingTo:(i,t)=>`Connessione al flusso… (fonte ${i}/${t})`,
+      source_n:(i,t)=>`fonte ${i}/${t}`,
+      noWorking:(name)=>`Nessun indirizzo di flusso funzionante trovato per <b>${name}</b> al momento.`,
+      addressChanged:"L'indirizzo di questo canale potrebbe essere cambiato. Usa il pulsante qui sotto per aggiornare il database; se la community ha aggiunto un nuovo indirizzo, arriverà automaticamente.",
+      sourceFailed:(i,t)=>`La fonte ${i}/${t} non si è aperta, provo la successiva…`,
+      noHls:"Il tuo browser non supporta i flussi HLS.",
+      apiNoResp:"L'API non ha risposto"
+    },
+    es:{ flag:"🇪🇸", label:"Español", dir:"ltr", htmlLang:"es",
+      brandName:"FLUJO ABIERTO", brandTag:"canales del mundo",
+      title:"Flujo Abierto — Canales de TV del mundo",
+      search:"Buscar país o canal…",
+      update:"Actualizar canales",
+      updateTitle:"Vuelve a descargar la base de datos de canales; se actualizan las direcciones de transmisión cambiadas / nuevas",
+      countries:"Países", channels:"Canales",
+      loading:"Descargando lista de canales…",
+      pickCountry:"Selecciona un país a la izquierda.<br>Los canales se mostrarán aquí.",
+      channelsOf:"Canales",
+      noStreamSel:"Ningún canal seleccionado",
+      phTitle:"Listo para ver",
+      phText:'Elige un país y luego haz clic en un canal. Si una transmisión no se abre, la app prueba automáticamente las otras direcciones de ese canal. Para canales cuya dirección cambió por completo, usa el botón <b style="color:var(--amber)">Actualizar canales</b> de arriba.',
+      statCountries:"Países", statChannels:"Canales disponibles", statStreams:"Direcciones de transmisión",
+      source:"Fuente: base de datos comunitaria iptv-org (solo transmisiones públicas gratuitas)",
+      lastUpdate:"Última actualización", sources:"fuentes",
+      noCountry:"Ningún país coincidente.", noChannel:"Ningún canal coincidente.",
+      updating:"Actualizando la base de datos de canales…",
+      updated:(n)=>`Actualizado ✓  ${n} direcciones de transmisión nuevas/cambiadas obtenidas, antiguas limpiadas.`,
+      loadFail:'No se pudo descargar la lista.<br>Verifica tu conexión a Internet y pulsa <b>Actualizar canales</b>.',
+      dataFail:"No se pudieron descargar los datos",
+      connecting:"conectando…", live:"● EN VIVO", noStream:"sin transmisión",
+      connectingTo:(i,t)=>`Conectando a la transmisión… (fuente ${i}/${t})`,
+      source_n:(i,t)=>`fuente ${i}/${t}`,
+      noWorking:(name)=>`No se encontró ninguna dirección de transmisión que funcione para <b>${name}</b> ahora mismo.`,
+      addressChanged:"La dirección de este canal puede haber cambiado. Usa el botón de abajo para actualizar la base de datos; si la comunidad agregó una nueva dirección, llegará automáticamente.",
+      sourceFailed:(i,t)=>`La fuente ${i}/${t} no se abrió, probando la siguiente…`,
+      noHls:"Tu navegador no admite transmisiones HLS.",
+      apiNoResp:"La API no respondió"
+    },
+    ar:{ flag:"🇸🇦", label:"العربية", dir:"rtl", htmlLang:"ar",
+      brandName:"البث المفتوح", brandTag:"قنوات العالم",
+      title:"البث المفتوح — قنوات تلفزيونية عالمية",
+      search:"ابحث عن دولة أو قناة…",
+      update:"تحديث القنوات",
+      updateTitle:"يعيد تنزيل قاعدة بيانات القنوات؛ يتم تحديث عناوين البث المتغيّرة / الجديدة",
+      countries:"الدول", channels:"القنوات",
+      loading:"جارٍ تنزيل قائمة القنوات…",
+      pickCountry:"اختر دولة من اليمين.<br>سيتم عرض القنوات هنا.",
+      channelsOf:"القنوات",
+      noStreamSel:"لم يتم اختيار بث",
+      phTitle:"جاهز للمشاهدة",
+      phText:'اختر دولة ثم انقر على قناة. إذا لم يفتح البث، يجرّب التطبيق تلقائيًا عناوين البث الأخرى لتلك القناة. للقنوات التي تغيّر عنوانها بالكامل، استخدم زر <b style="color:var(--amber)">تحديث القنوات</b> في الأعلى.',
+      statCountries:"الدول", statChannels:"قنوات قابلة للمشاهدة", statStreams:"عناوين البث",
+      source:"المصدر: قاعدة بيانات مجتمع iptv-org (بثوث عامة مجانية فقط)",
+      lastUpdate:"آخر تحديث", sources:"مصادر",
+      noCountry:"لا توجد دولة مطابقة.", noChannel:"لا توجد قناة مطابقة.",
+      updating:"جارٍ تحديث قاعدة بيانات القنوات…",
+      updated:(n)=>`تم التحديث ✓  تم جلب ${n} عنوان بث جديد/متغيّر، وتنظيف القديمة.`,
+      loadFail:'تعذّر تنزيل القائمة.<br>تحقق من اتصالك بالإنترنت واضغط <b>تحديث القنوات</b>.',
+      dataFail:"تعذّر تنزيل البيانات",
+      connecting:"جارٍ الاتصال…", live:"● مباشر", noStream:"لا يوجد بث",
+      connectingTo:(i,t)=>`جارٍ الاتصال بالبث… (المصدر ${i}/${t})`,
+      source_n:(i,t)=>`المصدر ${i}/${t}`,
+      noWorking:(name)=>`لم يتم العثور على عنوان بث يعمل لـ <b>${name}</b> حاليًا.`,
+      addressChanged:"ربما تغيّر عنوان هذه القناة. استخدم الزر أدناه لتحديث قاعدة البيانات؛ إذا أضاف المجتمع عنوانًا جديدًا فسيظهر تلقائيًا.",
+      sourceFailed:(i,t)=>`المصدر ${i}/${t} لم يفتح، جارٍ تجربة التالي…`,
+      noHls:"متصفحك لا يدعم بث HLS.",
+      apiNoResp:"لم تستجب واجهة البرمجة"
+    },
+    zh:{ flag:"🇨🇳", label:"中文", dir:"ltr", htmlLang:"zh",
+      brandName:"开放直播", brandTag:"全球频道",
+      title:"开放直播 — 全球电视频道",
+      search:"搜索国家或频道…",
+      update:"更新频道",
+      updateTitle:"重新下载频道数据库；更新已更改／新增的直播地址",
+      countries:"国家", channels:"频道",
+      loading:"正在下载频道列表…",
+      pickCountry:"在左侧选择一个国家。<br>频道将显示在这里。",
+      channelsOf:"频道",
+      noStreamSel:"未选择直播",
+      phTitle:"准备观看",
+      phText:'选择一个国家，然后点击频道。如果直播无法打开，应用会自动尝试该频道的其他直播地址。对于地址完全更改的频道，请使用上方的<b style="color:var(--amber)">更新频道</b>按钮。',
+      statCountries:"国家", statChannels:"可观看频道", statStreams:"直播地址",
+      source:"来源：iptv-org 社区数据库（仅限免费公开直播）",
+      lastUpdate:"上次更新", sources:"个源",
+      noCountry:"没有匹配的国家。", noChannel:"没有匹配的频道。",
+      updating:"正在更新频道数据库…",
+      updated:(n)=>`已更新 ✓  获取了 ${n} 个新增/更改的直播地址，已清理旧地址。`,
+      loadFail:'无法下载列表。<br>请检查网络连接并点击<b>更新频道</b>。',
+      dataFail:"无法下载数据",
+      connecting:"连接中…", live:"● 直播", noStream:"无直播",
+      connectingTo:(i,t)=>`正在连接直播…（源 ${i}/${t}）`,
+      source_n:(i,t)=>`源 ${i}/${t}`,
+      noWorking:(name)=>`目前未找到 <b>${name}</b> 可用的直播地址。`,
+      addressChanged:"该频道的地址可能已更改。使用下方按钮刷新数据库；如果社区添加了新地址，它会自动出现。",
+      sourceFailed:(i,t)=>`源 ${i}/${t} 未能打开，正在尝试下一个…`,
+      noHls:"您的浏览器不支持 HLS 直播。",
+      apiNoResp:"API 无响应"
+    }
+  };
+
+  // Localized country names per language
+  const COUNTRY_NAMES = {
+    en:{TR:"Turkey",DE:"Germany",US:"United States",GB:"United Kingdom",FR:"France",IT:"Italy",ES:"Spain",NL:"Netherlands",AZ:"Azerbaijan",RU:"Russia",GR:"Greece",BG:"Bulgaria",IR:"Iran",IQ:"Iraq",SA:"Saudi Arabia",AE:"UAE",EG:"Egypt",IN:"India",PK:"Pakistan",CN:"China",JP:"Japan",KR:"South Korea",BR:"Brazil",AR:"Argentina",MX:"Mexico",CA:"Canada",AU:"Australia",AT:"Austria",CH:"Switzerland",SE:"Sweden",NO:"Norway",DK:"Denmark",FI:"Finland",PL:"Poland",UA:"Ukraine",RO:"Romania",HU:"Hungary",CZ:"Czechia",PT:"Portugal",BE:"Belgium",RS:"Serbia",HR:"Croatia",BA:"Bosnia & Herzegovina",MK:"North Macedonia",AL:"Albania",GE:"Georgia",KZ:"Kazakhstan",UZ:"Uzbekistan",TM:"Turkmenistan",KG:"Kyrgyzstan",CY:"Cyprus",IL:"Israel",JO:"Jordan",LB:"Lebanon",SY:"Syria",MA:"Morocco",DZ:"Algeria",TN:"Tunisia",LY:"Libya",QA:"Qatar",KW:"Kuwait",BH:"Bahrain",OM:"Oman",YE:"Yemen",AF:"Afghanistan",ID:"Indonesia",MY:"Malaysia",TH:"Thailand",VN:"Vietnam",PH:"Philippines",ZA:"South Africa",NG:"Nigeria",KE:"Kenya",ET:"Ethiopia"},
+    tr:{TR:"Türkiye",DE:"Almanya",US:"ABD",GB:"Birleşik Krallık",FR:"Fransa",IT:"İtalya",ES:"İspanya",NL:"Hollanda",AZ:"Azerbaycan",RU:"Rusya",GR:"Yunanistan",BG:"Bulgaristan",IR:"İran",IQ:"Irak",SA:"Suudi Arabistan",AE:"BAE",EG:"Mısır",IN:"Hindistan",PK:"Pakistan",CN:"Çin",JP:"Japonya",KR:"Güney Kore",BR:"Brezilya",AR:"Arjantin",MX:"Meksika",CA:"Kanada",AU:"Avustralya",AT:"Avusturya",CH:"İsviçre",SE:"İsveç",NO:"Norveç",DK:"Danimarka",FI:"Finlandiya",PL:"Polonya",UA:"Ukrayna",RO:"Romanya",HU:"Macaristan",CZ:"Çekya",PT:"Portekiz",BE:"Belçika",RS:"Sırbistan",HR:"Hırvatistan",BA:"Bosna-Hersek",MK:"Kuzey Makedonya",AL:"Arnavutluk",GE:"Gürcistan",KZ:"Kazakistan",UZ:"Özbekistan",TM:"Türkmenistan",KG:"Kırgızistan",CY:"Kıbrıs",IL:"İsrail",JO:"Ürdün",LB:"Lübnan",SY:"Suriye",MA:"Fas",DZ:"Cezayir",TN:"Tunus",LY:"Libya",QA:"Katar",KW:"Kuveyt",BH:"Bahreyn",OM:"Umman",YE:"Yemen",AF:"Afganistan",ID:"Endonezya",MY:"Malezya",TH:"Tayland",VN:"Vietnam",PH:"Filipinler",ZA:"Güney Afrika",NG:"Nijerya",KE:"Kenya",ET:"Etiyopya"},
+    de:{TR:"Türkei",DE:"Deutschland",US:"USA",GB:"Vereinigtes Königreich",FR:"Frankreich",IT:"Italien",ES:"Spanien",NL:"Niederlande",AZ:"Aserbaidschan",RU:"Russland",GR:"Griechenland",BG:"Bulgarien",IR:"Iran",IQ:"Irak",SA:"Saudi-Arabien",AE:"VAE",EG:"Ägypten",IN:"Indien",PK:"Pakistan",CN:"China",JP:"Japan",KR:"Südkorea",BR:"Brasilien",AR:"Argentinien",MX:"Mexiko",CA:"Kanada",AU:"Australien",AT:"Österreich",CH:"Schweiz",SE:"Schweden",NO:"Norwegen",DK:"Dänemark",FI:"Finnland",PL:"Polen",UA:"Ukraine",RO:"Rumänien",HU:"Ungarn",CZ:"Tschechien",PT:"Portugal",BE:"Belgien",RS:"Serbien",HR:"Kroatien",BA:"Bosnien-Herzegowina",MK:"Nordmazedonien",AL:"Albanien",GE:"Georgien",KZ:"Kasachstan",UZ:"Usbekistan",TM:"Turkmenistan",KG:"Kirgisistan",CY:"Zypern",IL:"Israel",JO:"Jordanien",LB:"Libanon",SY:"Syrien",MA:"Marokko",DZ:"Algerien",TN:"Tunesien",LY:"Libyen",QA:"Katar",KW:"Kuwait",BH:"Bahrain",OM:"Oman",YE:"Jemen",AF:"Afghanistan",ID:"Indonesien",MY:"Malaysia",TH:"Thailand",VN:"Vietnam",PH:"Philippinen",ZA:"Südafrika",NG:"Nigeria",KE:"Kenia",ET:"Äthiopien"},
+    fr:{TR:"Turquie",DE:"Allemagne",US:"États-Unis",GB:"Royaume-Uni",FR:"France",IT:"Italie",ES:"Espagne",NL:"Pays-Bas",AZ:"Azerbaïdjan",RU:"Russie",GR:"Grèce",BG:"Bulgarie",IR:"Iran",IQ:"Irak",SA:"Arabie saoudite",AE:"ÉAU",EG:"Égypte",IN:"Inde",PK:"Pakistan",CN:"Chine",JP:"Japon",KR:"Corée du Sud",BR:"Brésil",AR:"Argentine",MX:"Mexique",CA:"Canada",AU:"Australie",AT:"Autriche",CH:"Suisse",SE:"Suède",NO:"Norvège",DK:"Danemark",FI:"Finlande",PL:"Pologne",UA:"Ukraine",RO:"Roumanie",HU:"Hongrie",CZ:"Tchéquie",PT:"Portugal",BE:"Belgique",RS:"Serbie",HR:"Croatie",BA:"Bosnie-Herzégovine",MK:"Macédoine du Nord",AL:"Albanie",GE:"Géorgie",KZ:"Kazakhstan",UZ:"Ouzbékistan",TM:"Turkménistan",KG:"Kirghizistan",CY:"Chypre",IL:"Israël",JO:"Jordanie",LB:"Liban",SY:"Syrie",MA:"Maroc",DZ:"Algérie",TN:"Tunisie",LY:"Libye",QA:"Qatar",KW:"Koweït",BH:"Bahreïn",OM:"Oman",YE:"Yémen",AF:"Afghanistan",ID:"Indonésie",MY:"Malaisie",TH:"Thaïlande",VN:"Vietnam",PH:"Philippines",ZA:"Afrique du Sud",NG:"Nigéria",KE:"Kenya",ET:"Éthiopie"},
+    it:{TR:"Turchia",DE:"Germania",US:"Stati Uniti",GB:"Regno Unito",FR:"Francia",IT:"Italia",ES:"Spagna",NL:"Paesi Bassi",AZ:"Azerbaigian",RU:"Russia",GR:"Grecia",BG:"Bulgaria",IR:"Iran",IQ:"Iraq",SA:"Arabia Saudita",AE:"EAU",EG:"Egitto",IN:"India",PK:"Pakistan",CN:"Cina",JP:"Giappone",KR:"Corea del Sud",BR:"Brasile",AR:"Argentina",MX:"Messico",CA:"Canada",AU:"Australia",AT:"Austria",CH:"Svizzera",SE:"Svezia",NO:"Norvegia",DK:"Danimarca",FI:"Finlandia",PL:"Polonia",UA:"Ucraina",RO:"Romania",HU:"Ungheria",CZ:"Cechia",PT:"Portogallo",BE:"Belgio",RS:"Serbia",HR:"Croazia",BA:"Bosnia-Erzegovina",MK:"Macedonia del Nord",AL:"Albania",GE:"Georgia",KZ:"Kazakistan",UZ:"Uzbekistan",TM:"Turkmenistan",KG:"Kirghizistan",CY:"Cipro",IL:"Israele",JO:"Giordania",LB:"Libano",SY:"Siria",MA:"Marocco",DZ:"Algeria",TN:"Tunisia",LY:"Libia",QA:"Qatar",KW:"Kuwait",BH:"Bahrein",OM:"Oman",YE:"Yemen",AF:"Afghanistan",ID:"Indonesia",MY:"Malesia",TH:"Thailandia",VN:"Vietnam",PH:"Filippine",ZA:"Sudafrica",NG:"Nigeria",KE:"Kenya",ET:"Etiopia"},
+    es:{TR:"Turquía",DE:"Alemania",US:"Estados Unidos",GB:"Reino Unido",FR:"Francia",IT:"Italia",ES:"España",NL:"Países Bajos",AZ:"Azerbaiyán",RU:"Rusia",GR:"Grecia",BG:"Bulgaria",IR:"Irán",IQ:"Irak",SA:"Arabia Saudita",AE:"EAU",EG:"Egipto",IN:"India",PK:"Pakistán",CN:"China",JP:"Japón",KR:"Corea del Sur",BR:"Brasil",AR:"Argentina",MX:"México",CA:"Canadá",AU:"Australia",AT:"Austria",CH:"Suiza",SE:"Suecia",NO:"Noruega",DK:"Dinamarca",FI:"Finlandia",PL:"Polonia",UA:"Ucrania",RO:"Rumanía",HU:"Hungría",CZ:"Chequia",PT:"Portugal",BE:"Bélgica",RS:"Serbia",HR:"Croacia",BA:"Bosnia y Herzegovina",MK:"Macedonia del Norte",AL:"Albania",GE:"Georgia",KZ:"Kazajistán",UZ:"Uzbekistán",TM:"Turkmenistán",KG:"Kirguistán",CY:"Chipre",IL:"Israel",JO:"Jordania",LB:"Líbano",SY:"Siria",MA:"Marruecos",DZ:"Argelia",TN:"Túnez",LY:"Libia",QA:"Catar",KW:"Kuwait",BH:"Baréin",OM:"Omán",YE:"Yemen",AF:"Afganistán",ID:"Indonesia",MY:"Malasia",TH:"Tailandia",VN:"Vietnam",PH:"Filipinas",ZA:"Sudáfrica",NG:"Nigeria",KE:"Kenia",ET:"Etiopía"},
+    ar:{TR:"تركيا",DE:"ألمانيا",US:"الولايات المتحدة",GB:"المملكة المتحدة",FR:"فرنسا",IT:"إيطاليا",ES:"إسبانيا",NL:"هولندا",AZ:"أذربيجان",RU:"روسيا",GR:"اليونان",BG:"بلغاريا",IR:"إيران",IQ:"العراق",SA:"السعودية",AE:"الإمارات",EG:"مصر",IN:"الهند",PK:"باكستان",CN:"الصين",JP:"اليابان",KR:"كوريا الجنوبية",BR:"البرازيل",AR:"الأرجنتين",MX:"المكسيك",CA:"كندا",AU:"أستراليا",AT:"النمسا",CH:"سويسرا",SE:"السويد",NO:"النرويج",DK:"الدنمارك",FI:"فنلندا",PL:"بولندا",UA:"أوكرانيا",RO:"رومانيا",HU:"المجر",CZ:"التشيك",PT:"البرتغال",BE:"بلجيكا",RS:"صربيا",HR:"كرواتيا",BA:"البوسنة والهرسك",MK:"مقدونيا الشمالية",AL:"ألبانيا",GE:"جورجيا",KZ:"كازاخستان",UZ:"أوزبكستان",TM:"تركمانستان",KG:"قيرغيزستان",CY:"قبرص",IL:"إسرائيل",JO:"الأردن",LB:"لبنان",SY:"سوريا",MA:"المغرب",DZ:"الجزائر",TN:"تونس",LY:"ليبيا",QA:"قطر",KW:"الكويت",BH:"البحرين",OM:"عُمان",YE:"اليمن",AF:"أفغانستان",ID:"إندونيسيا",MY:"ماليزيا",TH:"تايلاند",VN:"فيتنام",PH:"الفلبين",ZA:"جنوب أفريقيا",NG:"نيجيريا",KE:"كينيا",ET:"إثيوبيا"},
+    zh:{TR:"土耳其",DE:"德国",US:"美国",GB:"英国",FR:"法国",IT:"意大利",ES:"西班牙",NL:"荷兰",AZ:"阿塞拜疆",RU:"俄罗斯",GR:"希腊",BG:"保加利亚",IR:"伊朗",IQ:"伊拉克",SA:"沙特阿拉伯",AE:"阿联酋",EG:"埃及",IN:"印度",PK:"巴基斯坦",CN:"中国",JP:"日本",KR:"韩国",BR:"巴西",AR:"阿根廷",MX:"墨西哥",CA:"加拿大",AU:"澳大利亚",AT:"奥地利",CH:"瑞士",SE:"瑞典",NO:"挪威",DK:"丹麦",FI:"芬兰",PL:"波兰",UA:"乌克兰",RO:"罗马尼亚",HU:"匈牙利",CZ:"捷克",PT:"葡萄牙",BE:"比利时",RS:"塞尔维亚",HR:"克罗地亚",BA:"波斯尼亚和黑塞哥维那",MK:"北马其顿",AL:"阿尔巴尼亚",GE:"格鲁吉亚",KZ:"哈萨克斯坦",UZ:"乌兹别克斯坦",TM:"土库曼斯坦",KG:"吉尔吉斯斯坦",CY:"塞浦路斯",IL:"以色列",JO:"约旦",LB:"黎巴嫩",SY:"叙利亚",MA:"摩洛哥",DZ:"阿尔及利亚",TN:"突尼斯",LY:"利比亚",QA:"卡塔尔",KW:"科威特",BH:"巴林",OM:"阿曼",YE:"也门",AF:"阿富汗",ID:"印度尼西亚",MY:"马来西亚",TH:"泰国",VN:"越南",PH:"菲律宾",ZA:"南非",NG:"尼日利亚",KE:"肯尼亚",ET:"埃塞俄比亚"}
+  };
+
+  // Detect initial language from browser, default English
+  let LANG = (function(){
+    const saved = (navigator.language||"en").slice(0,2).toLowerCase();
+    return I18N[saved] ? saved : "en";
+  })();
+  let T = I18N[LANG];
+
+  // State
+  let rawCountries = [], rawChannels = [], rawStreams = [];
+  let countries = [];
+  let channelsByCountry = new Map();
+  let streamsByChannel = new Map();
+  let activeCountry = null;
+  let activeChannelId = null;
+  let activeChannelName = "";
+  let currentStreams = [];
+  let currentStreamIdx = 0;
+  let hls = null;
+  let totalChannels = 0, totalStreams = 0;
+  let lastUpdateTime = null;
+
+  const $ = id => document.getElementById(id);
+  const video = $("video");
+
+  function flagEmoji(code){
+    if(!/^[A-Z]{2}$/.test(code)) return "🏳️";
+    return String.fromCodePoint(...[...code].map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
+  }
+  function toast(msg, ms=3200){
+    const t = $("toast");
+    t.innerHTML = msg;
+    t.classList.add("show");
+    clearTimeout(t._h);
+    t._h = setTimeout(()=>t.classList.remove("show"), ms);
+  }
+  function setBadge(type, text){
+    const b = $("liveBadge");
+    if(!type){ b.style.display="none"; return; }
+    b.style.display="inline-block";
+    b.className = "badge " + type;
+    b.textContent = text;
+  }
+  function showOverlay(html){ const o=$("overlayMsg"); o.innerHTML=html; o.style.display="flex"; }
+  function hideOverlay(){ $("overlayMsg").style.display="none"; }
+
+  /* ---------------- LANGUAGE ---------------- */
+  function buildLangMenu(){
+    $("langMenu").innerHTML = Object.keys(I18N).map(code=>`
+      <div class="lang-item ${code===LANG?'active':''}" data-lang="${code}">
+        <span class="lflag">${I18N[code].flag}</span><span>${I18N[code].label}</span>
+      </div>`).join("");
+  }
+
+  function applyLanguage(){
+    T = I18N[LANG];
+    document.documentElement.lang = T.htmlLang;
+    document.body.setAttribute("dir", T.dir);
+    document.title = T.title;
+
+    $("brandName").textContent = T.brandName;
+    $("brandTag").textContent  = T.brandTag;
+    $("search").placeholder    = T.search;
+    $("langBtnFlag").textContent = T.flag;
+    $("langBtnName").textContent = T.label;
+    $("updLabel").textContent  = T.update;
+    $("updateBtn").title        = T.updateTitle;
+    $("countriesTitle").textContent = T.countries;
+    $("statCountriesLbl").textContent = T.statCountries;
+    $("statChannelsLbl").textContent  = T.statChannels;
+    $("statStreamsLbl").textContent   = T.statStreams;
+    $("sourceNote").textContent = T.source;
+    $("phTitle").textContent = T.phTitle;
+    $("phText").innerHTML = T.phText;
+
+    if(lastUpdateTime){
+      $("lastUpdate").textContent = T.lastUpdate + ": " +
+        lastUpdateTime.toLocaleTimeString(T.htmlLang,{hour:"2-digit",minute:"2-digit"});
+    }
+
+    // Rebuild localized data-derived UI
+    if(rawCountries.length){
+      rebuildCountries();
+      renderCountries($("search").value.trim());
+      if(activeCountry && channelsByCountry.has(activeCountry)){
+        renderChannels(activeCountry, $("search")._chFilter);
+      } else {
+        $("chColTitle").textContent = T.channels;
+        $("channelList").innerHTML = `<div class="empty">${T.pickCountry}</div>`;
+      }
+    } else {
+      $("chColTitle").textContent = T.channels;
+      $("channelList").innerHTML = `<div class="empty">${T.pickCountry}</div>`;
+      $("countryList").innerHTML = `<div class="loading-block">${T.loading}</div>`;
+    }
+    if(!activeChannelId) $("nowTitle").textContent = T.noStreamSel;
+
+    buildLangMenu();
+  }
+
+  function setLanguage(code){
+    if(!I18N[code] || code===LANG) return;
+    LANG = code;
+    applyLanguage();
+  }
+
+  /* ---------------- DATA ---------------- */
+  function rebuildCountries(){
+    const names = COUNTRY_NAMES[LANG] || COUNTRY_NAMES.en;
+    countries = rawCountries
+      .filter(c => channelsByCountry.has(c.code))
+      .map(c => ({
+        code:c.code,
+        name: names[c.code] || c.name,
+        flag: flagEmoji(c.code),
+        count: channelsByCountry.get(c.code).length
+      }))
+      .sort((a,b)=>b.count-a.count);
+  }
+
+  async function loadData(isUpdate){
+    const btn = $("updateBtn"), icon = $("updIcon");
+    btn.disabled = true;
+    icon.classList.add("spin");
+    if(isUpdate) toast(T.updating);
+
+    try{
+      const bust = "?t=" + Date.now();
+      const [cRes, chRes, sRes] = await Promise.all([
+        fetch(API + "/countries.json" + bust),
+        fetch(API + "/channels.json"  + bust),
+        fetch(API + "/streams.json"   + bust)
+      ]);
+      if(!cRes.ok || !chRes.ok || !sRes.ok) throw new Error(T.apiNoResp);
+      const [countryData, channelData, streamData] = await Promise.all([cRes.json(), chRes.json(), sRes.json()]);
+
+      const oldUrls = new Set();
+      if(isUpdate){
+        for(const list of streamsByChannel.values())
+          for(const s of list) oldUrls.add(s.url);
+      }
+
+      const newStreams = new Map();
+      let streamCount = 0;
+      for(const s of streamData){
+        if(!s.channel || !s.url) continue;
+        if(!newStreams.has(s.channel)) newStreams.set(s.channel, []);
+        newStreams.get(s.channel).push(s);
+        streamCount++;
+      }
+
+      const newByCountry = new Map();
+      let chCount = 0;
+      for(const ch of channelData){
+        if(ch.closed) continue;
+        if(!newStreams.has(ch.id)) continue;
+        const cc = ch.country;
+        if(!cc) continue;
+        if(!newByCountry.has(cc)) newByCountry.set(cc, []);
+        newByCountry.get(cc).push(ch);
+        chCount++;
+      }
+      for(const list of newByCountry.values())
+        list.sort((a,b)=>a.name.localeCompare(b.name));
+
+      if(isUpdate){
+        let newUrls = 0;
+        for(const list of newStreams.values())
+          for(const s of list) if(!oldUrls.has(s.url)) newUrls++;
+        toast(T.updated(newUrls), 4500);
+      }
+
+      rawCountries = countryData;
+      rawChannels  = channelData;
+      rawStreams   = streamData;
+      channelsByCountry = newByCountry;
+      streamsByChannel  = newStreams;
+      totalChannels = chCount;
+      totalStreams  = streamCount;
+
+      rebuildCountries();
+
+      $("statCountries").textContent = countries.length;
+      $("statChannels").textContent  = totalChannels.toLocaleString(T.htmlLang);
+      $("statStreams").textContent   = totalStreams.toLocaleString(T.htmlLang);
+      lastUpdateTime = new Date();
+      $("lastUpdate").textContent = T.lastUpdate + ": " +
+        lastUpdateTime.toLocaleTimeString(T.htmlLang,{hour:"2-digit",minute:"2-digit"});
+
+      renderCountries();
+      if(activeCountry && channelsByCountry.has(activeCountry)) renderChannels(activeCountry);
+    }catch(err){
+      console.error(err);
+      $("countryList").innerHTML = `<div class="empty">${T.loadFail}</div>`;
+      toast(T.dataFail + ": " + err.message, 5000);
+    }finally{
+      btn.disabled = false;
+      icon.classList.remove("spin");
+    }
+  }
+
+  /* ---------------- LISTS ---------------- */
+  function renderCountries(filter){
+    const wrap = $("countryList");
+    const q = (filter||"").toLowerCase();
+    const list = countries.filter(c => !q || c.name.toLowerCase().includes(q));
+    if(!list.length){ wrap.innerHTML = `<div class="empty">${T.noCountry}</div>`; return; }
+    wrap.innerHTML = list.map(c => `
+      <div class="country ${c.code===activeCountry?'active':''}" data-code="${c.code}">
+        <span class="flag">${c.flag}</span>
+        <span class="cname">${c.name}</span>
+        <span class="count">${c.count}</span>
+      </div>`).join("");
+  }
+
+  function renderChannels(code, filter){
+    const country = countries.find(c=>c.code===code);
+    $("chColTitle").textContent = country ? `${country.flag} ${country.name} — ${T.channels}` : T.channels;
+    const wrap = $("channelList");
+    const q = (filter||"").toLowerCase();
+    const list = (channelsByCountry.get(code)||[])
+      .filter(ch => !q || ch.name.toLowerCase().includes(q));
+    if(!list.length){ wrap.innerHTML = `<div class="empty">${T.noChannel}</div>`; return; }
+    wrap.innerHTML = list.map(ch => {
+      const n = (streamsByChannel.get(ch.id)||[]).length;
+      const logo = ch.logo
+        ? `<img src="${ch.logo}" loading="lazy" onerror="this.outerHTML='<div class=noimg>📺</div>'">`
+        : `<div class="noimg">📺</div>`;
+      return `
+      <div class="channel ${ch.id===activeChannelId?'active':''}" data-id="${ch.id}" data-name="${ch.name.replace(/"/g,'&quot;')}">
+        ${logo}
+        <span class="chname">${ch.name}</span>
+        ${n>1?`<span class="alt">${n} ${T.sources}</span>`:""}
+      </div>`;
+    }).join("");
+  }
+
+  /* ---------------- PLAYER ---------------- */
+  function stopPlayback(){
+    if(hls){ hls.destroy(); hls=null; }
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+  }
+
+  function playChannel(channelId, channelName){
+    currentStreams = streamsByChannel.get(channelId) || [];
+    currentStreamIdx = 0;
+    activeChannelId = channelId;
+    activeChannelName = channelName;
+    $("nowTitle").textContent = channelName;
+    $("placeholder").style.display = "none";
+    video.style.display = "block";
+    renderChannels(activeCountry, $("search")._chFilter);
+    tryCurrentStream(channelName);
+  }
+
+  function tryCurrentStream(channelName){
+    stopPlayback();
+    hideOverlay();
+    if(currentStreamIdx >= currentStreams.length){
+      setBadge("err", T.noStream);
+      $("streamInfo").textContent = "";
+      showOverlay(`
+        <div style="font-size:34px">📡</div>
+        <div>${T.noWorking(channelName)}</div>
+        <div style="color:var(--text-dim);font-size:12px;max-width:380px">${T.addressChanged}</div>
+        <button onclick="document.getElementById('updateBtn').click()">⟳ ${T.update}</button>`);
+      return;
+    }
+
+    const stream = currentStreams[currentStreamIdx];
+    const total = currentStreams.length;
+    $("streamInfo").textContent = T.source_n(currentStreamIdx+1, total) + (stream.quality ? " · " + stream.quality : "");
+    setBadge("try", T.connecting);
+    showOverlay(`<span class="spin">⟳</span><div>${T.connectingTo(currentStreamIdx+1, total)}</div>`);
+
+    const fail = () => {
+      currentStreamIdx++;
+      if(currentStreamIdx < total){
+        toast(T.sourceFailed(currentStreamIdx, total), 2200);
+      }
+      tryCurrentStream(channelName);
+    };
+
+    let watchdog = setTimeout(fail, 14000);
+    const onPlaying = () => {
+      clearTimeout(watchdog);
+      hideOverlay();
+      setBadge("live", T.live);
+    };
+    video.addEventListener("playing", onPlaying, { once:true });
+
+    const url = stream.url;
+    if(window.Hls && Hls.isSupported()){
+      hls = new Hls({ manifestLoadingMaxRetry:1, levelLoadingMaxRetry:1, fragLoadingMaxRetry:1 });
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(()=>{}));
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if(data.fatal){
+          clearTimeout(watchdog);
+          video.removeEventListener("playing", onPlaying);
+          fail();
+        }
+      });
+    } else if(video.canPlayType("application/vnd.apple.mpegurl")){
+      video.src = url;
+      video.addEventListener("error", () => { clearTimeout(watchdog); fail(); }, { once:true });
+      video.play().catch(()=>{});
+    } else {
+      clearTimeout(watchdog);
+      showOverlay(T.noHls);
+    }
+  }
+
+  /* ---------------- EVENTS ---------------- */
+  $("countryList").addEventListener("click", e => {
+    const el = e.target.closest(".country");
+    if(!el) return;
+    activeCountry = el.dataset.code;
+    $("search").value = "";
+    $("search")._chFilter = "";
+    renderCountries();
+    renderChannels(activeCountry);
+  });
+
+  $("channelList").addEventListener("click", e => {
+    const el = e.target.closest(".channel");
+    if(!el) return;
+    playChannel(el.dataset.id, el.dataset.name);
+  });
+
+  $("search").addEventListener("input", e => {
+    const q = e.target.value.trim();
+    if(activeCountry){
+      e.target._chFilter = q;
+      renderCountries(q);
+      renderChannels(activeCountry, q);
+    } else {
+      renderCountries(q);
+    }
+  });
+
+  $("updateBtn").addEventListener("click", () => loadData(true));
+
+  // Language dropdown
+  $("langBtn").addEventListener("click", e => {
+    e.stopPropagation();
+    $("langBtn").classList.toggle("open");
+    $("langMenu").classList.toggle("open");
+  });
+  $("langMenu").addEventListener("click", e => {
+    const el = e.target.closest(".lang-item");
+    if(!el) return;
+    setLanguage(el.dataset.lang);
+    $("langBtn").classList.remove("open");
+    $("langMenu").classList.remove("open");
+  });
+  document.addEventListener("click", () => {
+    $("langBtn").classList.remove("open");
+    $("langMenu").classList.remove("open");
+  });
+
+  // Init
+  applyLanguage();
+  loadData(false);
+})();
+</script>
+</body>
+</html>
