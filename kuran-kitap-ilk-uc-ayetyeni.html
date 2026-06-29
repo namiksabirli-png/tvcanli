@@ -351,6 +351,145 @@ html,body{
 @media(min-width:600px){
   .page-body{ padding-left:70px; padding-right:28px; }
 }
+/* ══ İLK AYET LİSTESİ BUTONU ══ */
+.list-btn{
+  background:#3a4a8a;
+  border:none;
+  color:#dde4ff;
+  font-size:.8rem;
+  padding:6px 14px;
+  border-radius:30px;
+  cursor:pointer;
+  font-weight:700;
+  font-family:inherit;
+  transition:.15s;
+  box-shadow:0 2px 6px rgba(0,0,0,.2);
+}
+.list-btn:hover{background:#4a5aa8;}
+.list-btn:active{transform:scale(.96);}
+
+/* ══ LİSTE OVERLAY ══ */
+.list-overlay{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:10000;
+  background:rgba(10,20,12,.75);
+  backdrop-filter:blur(3px);
+  align-items:center;
+  justify-content:center;
+  padding:3vh 3vw;
+}
+.list-overlay.open{ display:flex; }
+
+.list-card{
+  width:100%;
+  max-width:760px;
+  height:90vh;
+  background:linear-gradient(160deg,#fdf6e0 0%,#f4e8c0 55%,#ecdba0 100%);
+  border-radius:14px;
+  box-shadow:0 0 0 3px #c9a520, 0 20px 60px rgba(0,0,0,.6);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+.list-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px 18px;
+  border-bottom:1.5px solid rgba(160,130,40,.3);
+  background:rgba(255,248,220,.6);
+  flex-shrink:0;
+}
+.list-title{
+  font-size:1rem;
+  font-weight:800;
+  color:#4a3205;
+}
+.list-close{
+  background:#8a2a1a;
+  border:none;
+  color:#ffe0d8;
+  font-size:.82rem;
+  font-weight:700;
+  padding:7px 16px;
+  border-radius:30px;
+  cursor:pointer;
+  font-family:inherit;
+  transition:.15s;
+}
+.list-close:hover{background:#a83a26;}
+.list-close:active{transform:scale(.96);}
+
+.list-body{
+  flex:1;
+  overflow-y:auto;
+  padding:10px 16px 18px;
+}
+
+.list-item{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  padding:12px 6px;
+  border-bottom:1px solid rgba(160,130,40,.18);
+}
+.list-item:last-child{ border-bottom:none; }
+
+.list-num{
+  flex-shrink:0;
+  width:30px;
+  height:30px;
+  border-radius:50%;
+  background:#1a4f2e;
+  color:#c8f0a0;
+  font-size:.8rem;
+  font-weight:800;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin-top:4px;
+}
+.list-meta{
+  flex:1;
+  min-width:0;
+}
+.list-name{
+  font-size:.9rem;
+  font-weight:800;
+  color:#5a3e08;
+  margin-bottom:6px;
+}
+.list-ayet{
+  direction:rtl;
+  text-align:right;
+  font-family:'Amiri','Traditional Arabic','Scheherazade New','Times New Roman',serif;
+  font-size:1.35rem;
+  line-height:1.9;
+  color:#1a2010;
+  margin-bottom:8px;
+  padding-bottom:8px;
+  border-bottom:1px dashed rgba(160,130,40,.2);
+}
+.list-ayet:last-child{
+  margin-bottom:0;
+  padding-bottom:0;
+  border-bottom:none;
+}
+.list-ayet-no{
+  color:#9a7010;
+  font-size:.72em;
+  margin-left:6px;
+  direction:ltr;
+  display:inline-block;
+}
+@media(max-width:600px){
+  .list-ayet{ font-size:1.15rem; }
+  .list-name{ font-size:.82rem; }
+}
+
 </style>
 </head>
 <body>
@@ -365,6 +504,7 @@ html,body{
       <div class="hud-chip score-chip">⭐ <span id="scoreNum">0</span> puan</div>
     </div>
     <div class="hud-right">
+      <button class="list-btn" id="listBtn">📋 İlk İki Ayet Listesi</button>
       <button class="listen-btn" id="listenBtn">🔊 Sesli Dinle</button>
       <button class="reset-btn" id="resetBtn">🔄 Yeni Set</button>
     </div>
@@ -394,6 +534,17 @@ html,body{
   </div>
 
 </div><!-- /page -->
+  <!-- İLK AYET LİSTESİ OVERLAY -->
+  <div class="list-overlay" id="listOverlay">
+    <div class="list-card">
+      <div class="list-head">
+        <div class="list-title">📋 Surelerin İlk İki Ayeti</div>
+        <button class="list-close" id="listCloseBtn">✕ Kapat</button>
+      </div>
+      <div class="list-body" id="listBody"></div>
+    </div>
+  </div>
+
 </div><!-- /frame -->
 
 <script>
@@ -657,6 +808,43 @@ document.getElementById('nextBtn').addEventListener('click',advance);
 document.getElementById('resetBtn').addEventListener('click',resetGame);
 document.getElementById('listenBtn').addEventListener('click',function(){ playCurrentSurah(this); });
 window.addEventListener('resize',adjustFontSize);
+
+// ── İLK AYET LİSTESİ ──────────────────────────────────────────────────────────
+function buildList(){
+  const body = document.getElementById('listBody');
+  body.innerHTML = [...DB]
+    .sort((a,b)=>a.id-b.id)
+    .map(s=>{
+      const ayetler = s.ar.split('|').slice(0,2);
+      const ayetHtml = ayetler.map((a,i)=>
+        `<div class="list-ayet"><span class="list-ayet-no">﴿${i+1}﴾</span> ${a}</div>`
+      ).join('');
+      return `<div class="list-item">
+        <div class="list-num">${s.id}</div>
+        <div class="list-meta">
+          <div class="list-name">${s.name}</div>
+          ${ayetHtml}
+        </div>
+      </div>`;
+    }).join('');
+}
+
+function openList(){
+  buildList();
+  const btn = document.getElementById('listenBtn');
+  stopAudio(btn);                       // liste açılınca sesi durdur
+  document.getElementById('listOverlay').classList.add('open');
+}
+function closeList(){
+  document.getElementById('listOverlay').classList.remove('open');
+}
+
+document.getElementById('listBtn').addEventListener('click',openList);
+document.getElementById('listCloseBtn').addEventListener('click',closeList);
+// overlay boşluğuna tıklayınca da kapat
+document.getElementById('listOverlay').addEventListener('click',function(e){
+  if(e.target===this) closeList();
+});
 
 setQ=genSet();
 render();
