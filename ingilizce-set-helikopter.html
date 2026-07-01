@@ -1,33 +1,129 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>İngilizce Helikopter</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:'Segoe UI',sans-serif;user-select:none;touch-action:manipulation}
-#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0a0a14}
-canvas{display:block;max-width:100%;max-height:100%}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>İngilizce Helikopter</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:'Segoe UI',sans-serif;user-select:none;touch-action:manipulation}
+    #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0a0a14}
+    canvas{display:block;max-width:100%;max-height:100%}
 
-#hud{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:none;z-index:10;flex-wrap:wrap;justify-content:center}
-.pill{background:rgba(0,0,0,0.65);border:1px solid rgba(255,255,255,0.12);border-radius:18px;padding:4px 13px;font-size:12px;font-weight:700;color:#fff;white-space:nowrap}
-.pill span{color:#fbbf24}
+    #hud{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:none;z-index:10;flex-wrap:wrap;justify-content:center}
+    .pill{background:rgba(0,0,0,0.65);border:1px solid rgba(255,255,255,0.12);border-radius:18px;padding:4px 13px;font-size:12px;font-weight:700;color:#fff;white-space:nowrap}
+    .pill span{color:#fbbf24}
 
-#fsBtn{position:absolute;bottom:12px;right:12px;z-index:30;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:#fff;font-size:20px;padding:6px 10px;cursor:pointer;line-height:1}
-#fsBtn:hover{background:rgba(0,0,0,0.8)}
+    #fsBtn{position:absolute;bottom:12px;right:12px;z-index:30;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:#fff;font-size:20px;padding:6px 10px;cursor:pointer;line-height:1}
+    #fsBtn:hover{background:rgba(0,0,0,0.8)}
 
-#setOverlay{position:absolute;inset:0;background:rgba(5,10,30,0.93);z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px}
-#setOverlay.show{display:flex}
-#setOverlay h2{font-size:28px;color:#fbbf24;font-weight:900}
-#setOverlay .big{font-size:42px;font-weight:900;color:#fff}
-#setOverlay p{font-size:14px;color:#aac4ff;line-height:1.7;max-width:420px}
-.ovl-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px}
-.ovl-btn{padding:12px 26px;border-radius:10px;border:none;font-size:14px;font-weight:800;cursor:pointer;font-family:'Segoe UI',sans-serif;letter-spacing:.5px;transition:transform .12s}
-.ovl-btn:hover{transform:translateY(-2px)}
-.btn-next{background:#22d3ee;color:#0a0a14}
-.btn-retry{background:#f59e0b;color:#0a0a14}
-</style>
+    #setOverlay{position:absolute;inset:0;background:rgba(5,10,30,0.93);z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px}
+    #setOverlay.show{display:flex}
+    #setOverlay h2{font-size:28px;color:#fbbf24;font-weight:900}
+    #setOverlay .big{font-size:42px;font-weight:900;color:#fff}
+    #setOverlay p{font-size:14px;color:#aac4ff;line-height:1.7;max-width:420px}
+    .ovl-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+    .ovl-btn{padding:12px 26px;border-radius:10px;border:none;font-size:14px;font-weight:800;cursor:pointer;font-family:'Segoe UI',sans-serif;letter-spacing:.5px;transition:transform .12s}
+    .ovl-btn:hover{transform:translateY(-2px)}
+    .btn-next{background:#22d3ee;color:#0a0a14}
+    .btn-retry{background:#f59e0b;color:#0a0a14}
+
+    /* kelime listesi butonu */
+    #wordListBtn {
+      position:absolute;
+      bottom:12px;
+      left:50%;
+      transform:translateX(-50%);
+      z-index:30;
+      background:rgba(0,0,0,0.6);
+      border:1px solid rgba(255,255,255,0.25);
+      border-radius:30px;
+      color:#fff;
+      font-size:14px;
+      font-weight:700;
+      padding:8px 22px;
+      cursor:pointer;
+      letter-spacing:0.5px;
+      backdrop-filter:blur(2px);
+      transition: background .2s;
+    }
+    #wordListBtn:hover { background:rgba(255,215,0,0.2); }
+
+    /* kelime listesi overlay – çocuk dostu büyük punto, 2 sütun */
+    #wordListOverlay {
+      position:absolute;
+      inset:0;
+      background:rgba(8,12,30,0.94);
+      z-index:60;
+      display:none;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      backdrop-filter:blur(6px);
+    }
+    #wordListOverlay.show { display:flex; }
+    #wordListOverlay .list-container {
+      background:rgba(0,0,0,0.6);
+      border:1px solid rgba(255,255,255,0.1);
+      border-radius:24px;
+      width:95%;
+      max-width:700px;
+      max-height:75vh;
+      overflow-y:auto;
+      padding:20px 16px;
+      display:grid;
+      grid-template-columns: repeat(2, 1fr);  /* en fazla 2 sütun */
+      gap:10px 20px;
+      scrollbar-width:thin;
+      scrollbar-color:#fbbf24 transparent;
+    }
+    #wordListOverlay .list-container::-webkit-scrollbar { width:6px; }
+    #wordListOverlay .list-container::-webkit-scrollbar-thumb { background:#fbbf24; border-radius:10px; }
+    #wordListOverlay .list-item {
+      font-size:18px;          /* büyük punto */
+      color:#e0e8ff;
+      padding:8px 0;
+      border-bottom:1px solid rgba(255,255,255,0.06);
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:center;
+    }
+    #wordListOverlay .list-item .en { color:#fcd34d; font-weight:700; font-size:20px; }
+    #wordListOverlay .list-item .tr { color:#b0c4ff; font-size:18px; }
+    #wordListOverlay .close-list {
+      background:rgba(255,255,255,0.06);
+      border:1px solid rgba(255,255,255,0.15);
+      border-radius:40px;
+      color:#fff;
+      font-size:18px;
+      padding:10px 32px;
+      margin-top:18px;
+      cursor:pointer;
+      font-weight:600;
+      transition: background .2s;
+    }
+    #wordListOverlay .close-list:hover { background:rgba(255,215,0,0.15); }
+    #wordListOverlay h3 {
+      color:#fbbf24;
+      font-size:28px;
+      margin-bottom:4px;
+      letter-spacing:1px;
+    }
+    #wordListOverlay .sub {
+      color:#8aa0e0;
+      font-size:16px;
+      margin-bottom:16px;
+    }
+    /* mobilde daha iyi görünüm */
+    @media (max-width: 480px) {
+      #wordListOverlay .list-item { font-size:16px; }
+      #wordListOverlay .list-item .en { font-size:18px; }
+      #wordListOverlay .list-item .tr { font-size:16px; }
+      #wordListOverlay .list-container { padding:14px 10px; gap:6px 12px; }
+    }
+  </style>
 </head>
 <body>
 <div id="wrap">
@@ -38,10 +134,18 @@ canvas{display:block;max-width:100%;max-height:100%}
     <div class="pill">Soru: <span id="pill-q">1</span>/10</div>
     <div class="pill">Skor: <span id="pill-skor">0</span></div>
     <div class="pill">Yanlış: <span id="pill-yanlis" style="color:#ef4444">0</span></div>
-    <div class="pill" id="pill-timer">⏱ <span id="pill-sec">5</span></div>
   </div>
 
   <button id="fsBtn" title="Tam Ekran">⛶</button>
+  <button id="wordListBtn">📖 Kelime Listesi</button>
+
+  <!-- Kelime listesi overlay (büyük punto, 2 sütun) -->
+  <div id="wordListOverlay">
+    <h3>📚 İngilizce - Türkçe</h3>
+    <div class="sub">alfabetik sırada</div>
+    <div class="list-container" id="wordListContainer"></div>
+    <button class="close-list" id="closeWordList">✕ Kapat</button>
+  </div>
 
   <div id="setOverlay">
     <h2 id="ovl-title">Set Tamamlandı! 🎉</h2>
@@ -56,9 +160,9 @@ canvas{display:block;max-width:100%;max-height:100%}
 
 <script>
 // ─────────────────────────────────────────────────────────────────────────────
-// KELİME LİSTESİ (İngilizce → Türkçe)
+// KELİME LİSTESİ (İngilizce → Türkçe) – alfabetik sırada
 // ─────────────────────────────────────────────────────────────────────────────
-const KELIMELER = [
+const KELIMELER_RAW = [
   ['hello','merhaba'],['hi','selam'],['goodbye','hoşça kal'],['bye','güle güle'],
   ['please','lütfen'],['thank you','teşekkür ederim'],['sorry','üzgünüm'],
   ['yes','evet'],['no','hayır'],['okay','tamam'],
@@ -125,6 +229,9 @@ const KELIMELER = [
   ['hair','saç'],['hospital','hastane'],['medicine','ilaç'],
 ];
 
+// alfabetik sırala (İngilizce kelimeye göre)
+const KELIMELER = [...KELIMELER_RAW].sort((a,b) => a[0].localeCompare(b[0]));
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SES
 // ─────────────────────────────────────────────────────────────────────────────
@@ -176,16 +283,6 @@ function playWrong(){
   s.start(t); s.stop(t+0.18);
 }
 
-function playTimeup(){
-  const ac=getAC(), t=ac.currentTime;
-  const o=ac.createOscillator(),g=ac.createGain();
-  o.connect(g); g.connect(ac.destination);
-  o.type='triangle'; o.frequency.setValueAtTime(300,t);
-  o.frequency.exponentialRampToValueAtTime(80,t+0.4);
-  g.gain.setValueAtTime(0.35,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.45);
-  o.start(t); o.stop(t+0.5);
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // CANVAS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -222,7 +319,7 @@ const VW=100, VH=80;
 const YERDEN=H-85;
 const HELI_Y=105;
 const SET_SIZE=10;
-const SURE=5;
+// SÜRE KALDIRILDI
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DURUM
@@ -233,7 +330,6 @@ let heliWord='', dogruCevap='';
 let variller=[], mermi=null, particles=[], flashMsg={text:'',color:'#fff',timer:0};
 let heli={x:W/2, vx:1.5, rotorAngle:0, shake:0};
 let animId;
-let timer=SURE, timerStart=0, timerActive=false;
 let setPool=[], wrongPairs=[], setScore=0;
 let usedAll=new Set();
 let lastTime=0;
@@ -248,7 +344,6 @@ function updateHUD(){
   document.getElementById('pill-q').textContent=qNo+1;
   document.getElementById('pill-skor').textContent=skor;
   document.getElementById('pill-yanlis').textContent=wrongPairs.length;
-  document.getElementById('pill-sec').textContent=Math.max(0,Math.ceil(timer));
 }
 
 function showFlash(t,c){ flashMsg={text:t,color:c,timer:65}; }
@@ -263,7 +358,6 @@ function startNewSet(pairs){
 }
 
 function loadQuestion(pair){
-  // İngilizce heli'de, Türkçe varillerde
   heliWord  = pair[0];
   dogruCevap= pair[1];
 
@@ -281,12 +375,10 @@ function loadQuestion(pair){
   const sp=W/(VARIL_COUNT+1);
   variller=words.map((w,i)=>({x:sp*(i+1),y:YERDEN,word:w,hit:false,wobble:0}));
   mermi=null; particles=[];
-  timer=SURE; timerStart=performance.now(); timerActive=true;
   updateHUD();
 }
 
 function onAnswer(correct, pair){
-  timerActive=false;
   if(correct){
     const bonus=10+setNo*2; skor+=bonus; setScore+=bonus;
     playCorrect(); showFlash('+'+bonus+' Doğru! 🎯','#4ade80');
@@ -300,18 +392,6 @@ function onAnswer(correct, pair){
     if(qNo>=SET_SIZE) showSetEnd();
     else loadQuestion(setPool[qNo]);
   }, correct?700:800);
-}
-
-function onTimeout(){
-  timerActive=false;
-  wrongPairs.push(setPool[qNo]);
-  playTimeup(); showFlash('Süre Doldu! ⏰','#fb923c');
-  updateHUD();
-  setTimeout(()=>{
-    qNo++;
-    if(qNo>=SET_SIZE) showSetEnd();
-    else loadQuestion(setPool[qNo]);
-  }, 900);
 }
 
 function showSetEnd(){
@@ -357,6 +437,39 @@ function startGame(){
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// KELİME LİSTESİ (overlay) – büyük punto, 2 sütun
+// ─────────────────────────────────────────────────────────────────────────────
+function renderWordList() {
+  const container = document.getElementById('wordListContainer');
+  container.innerHTML = '';
+  KELIMELER.forEach(([en, tr]) => {
+    const div = document.createElement('div');
+    div.className = 'list-item';
+    // Çocuklar için büyük ve okunaklı
+    div.innerHTML = `<span class="en">${en}</span><span class="tr">${tr}</span>`;
+    container.appendChild(div);
+  });
+}
+
+document.getElementById('wordListBtn').addEventListener('click', ()=>{
+  const overlay = document.getElementById('wordListOverlay');
+  if (overlay.classList.contains('show')) {
+    overlay.classList.remove('show');
+  } else {
+    renderWordList();
+    overlay.classList.add('show');
+  }
+});
+document.getElementById('closeWordList').addEventListener('click', ()=>{
+  document.getElementById('wordListOverlay').classList.remove('show');
+});
+document.getElementById('wordListOverlay').addEventListener('click', (e)=>{
+  if (e.target === e.currentTarget) {
+    document.getElementById('wordListOverlay').classList.remove('show');
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // INPUT
 // ─────────────────────────────────────────────────────────────────────────────
 function handleClick(clientX){
@@ -393,12 +506,6 @@ function update(dt){
   heli.rotorAngle+=0.25;
   if(heli.shake>0) heli.shake-=0.6;
   variller.forEach(v=>{ if(v.wobble>0) v.wobble*=0.82; });
-
-  if(timerActive){
-    timer=SURE-(performance.now()-timerStart)/1000;
-    if(timer<=0){ timer=0; onTimeout(); }
-    updateHUD();
-  }
 
   if(mermi){
     mermi.progress+=0.05;
@@ -441,7 +548,8 @@ function draw(){
   draw._stars.forEach(s=>{ ctx.fillStyle=`rgba(255,255,255,${0.3+Math.random()*0.15})`; ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill(); });
 
   drawGround(); drawVariller(); drawHeli(); drawMermi();
-  drawParticles(); drawHeliBubble(); drawTimer(); drawFlash();
+  drawParticles(); drawHeliBubble();
+  drawFlash();
   if(state==='start') drawStart();
 }
 
@@ -482,7 +590,6 @@ function drawVariller(){
     ctx.beginPath(); ctx.ellipse(0,-VH/2,VW/2,8,0,0,Math.PI*2); ctx.fill();
     ctx.fillStyle='rgba(255,255,255,0.07)'; ctx.fillRect(-VW/2+6,-VH/2+10,12,VH-18);
 
-    // etiket
     const lblW=VW-12, lblH=44;
     ctx.fillStyle='rgba(255,255,255,0.93)';
     ctx.beginPath(); ctx.roundRect(-lblW/2,-lblH/2+2,lblW,lblH,6); ctx.fill();
@@ -609,23 +716,6 @@ function drawHeliBubble(){
   ctx.restore();
 }
 
-function drawTimer(){
-  if(state!=='playing') return;
-  const sec=Math.max(0,Math.ceil(timer)), pct=timer/SURE;
-  const cx=36, cy=36, r=24;
-  ctx.save();
-  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
-  ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fill();
-  const col=pct>0.5?'#4ade80':pct>0.25?'#fbbf24':'#ef4444';
-  ctx.strokeStyle=col; ctx.lineWidth=5; ctx.shadowColor=col; ctx.shadowBlur=8;
-  ctx.beginPath(); ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+Math.PI*2*pct); ctx.stroke();
-  ctx.shadowBlur=0;
-  ctx.fillStyle='#fff'; ctx.font=`bold 22px Segoe UI`;
-  ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(sec,cx,cy);
-  ctx.restore();
-}
-
 function drawMermi(){
   if(!mermi) return;
   ctx.save();
@@ -658,7 +748,7 @@ function drawStart(){
   ctx.fillStyle='#fbbf24'; ctx.font='bold 34px Segoe UI';
   ctx.fillText('🚁 İngilizce Helikopter',W/2,H/2-90);
   ctx.fillStyle='#aac4ff'; ctx.font='15px Segoe UI';
-  ctx.fillText('Her sette 10 soru — 5 saniyen var!',W/2,H/2-52);
+  ctx.fillText('Her sette 10 soru — Süre yok, rahatça düşün!',W/2,H/2-52);
   ctx.fillText('İngilizce kelimeyi görüp Türkçesine tıkla.',W/2,H/2-28);
   ctx.fillStyle='#fca5a5'; ctx.font='13px Segoe UI';
   ctx.fillText('Set bitince skor ve yanlışlar gösterilir.',W/2,H/2+4);
