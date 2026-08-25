@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Canlı Bakış — Dünya Web Kameraları</title>
+<style>
+  :root{
+    --bg:#10141c;
+    --bg-2:#161c27;
+    --bg-3:#1d2533;
+    --line:#2a3447;
+    --text:#e8edf5;
+    --text-dim:#8b96a8;
+    --amber:#f5b942;
+    --amber-dim:#b8862a;
+    --live:#5dc98a;
+    --err:#e35d5d;
+    --radius:10px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  /* ---------- ÜST BAR ---------- */
+  header{
+    display:flex;align-items:center;gap:14px;
+    padding:12px 18px;
+    background:var(--bg-2);
+    border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  .logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:.5px}
+  .logo .dot{width:10px;height:10px;border-radius:50%;background:var(--live);box-shadow:0 0 8px var(--live);animation:pulse 1.6s infinite}
+  @keyframes pulse{50%{opacity:.4}}
+  .logo small{color:var(--text-dim);font-weight:400;font-size:12px;margin-left:4px}
+  #search{
+    flex:1;min-width:160px;max-width:300px;
+    background:var(--bg-3);border:1px solid var(--line);
+    color:var(--text);padding:8px 12px;border-radius:var(--radius);
+    font-size:14px;outline:none;
+  }
+  #search:focus{border-color:var(--amber)}
+  #apiKey{
+    width:190px;min-width:140px;
+    background:var(--bg-3);border:1px solid var(--line);
+    color:var(--text);padding:8px 12px;border-radius:var(--radius);
+    font-size:13px;outline:none;
+  }
+  #apiKey:focus{border-color:var(--amber)}
+  #keyLink{font-size:11px;color:var(--amber-dim);text-decoration:none;white-space:nowrap}
+  #keyLink:hover{color:var(--amber)}
+  #updateBtn{
+    display:flex;align-items:center;gap:8px;
+    background:var(--amber);color:#1a1206;border:none;
+    padding:9px 16px;border-radius:var(--radius);
+    font-size:14px;font-weight:600;cursor:pointer;
+    transition:filter .15s;white-space:nowrap;
+  }
+  #updateBtn:hover{filter:brightness(1.1)}
+  #updateBtn:disabled{opacity:.55;cursor:wait}
+  #updateBtn .spin{display:inline-block;animation:rot 1s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  #lastUpdate{font-size:12px;color:var(--text-dim)}
+
+  /* ---------- ANA YERLEŞİM ---------- */
+  main{flex:1;display:flex;min-height:0}
+  #countries{
+    width:230px;min-width:190px;
+    overflow-y:auto;
+    border-right:1px solid var(--line);
+    background:var(--bg-2);
+  }
+  .col-title{
+    position:sticky;top:0;background:var(--bg-2);
+    padding:10px 14px;font-size:11px;letter-spacing:1.5px;
+    text-transform:uppercase;color:var(--text-dim);
+    border-bottom:1px solid var(--line);z-index:2;
+  }
+  .country{
+    display:flex;align-items:center;gap:10px;
+    padding:9px 14px;cursor:pointer;font-size:14px;
+    border-bottom:1px solid rgba(42,52,71,.4);
+  }
+  .country:hover{background:var(--bg-3)}
+  .country.active{background:var(--bg-3);box-shadow:inset 3px 0 0 var(--amber)}
+  .country .flag{font-size:18px;width:24px;text-align:center}
+  .country .cname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  #cams{
+    width:290px;min-width:220px;
+    overflow-y:auto;
+    border-right:1px solid var(--line);
+    background:var(--bg);
+  }
+  .cam{
+    display:flex;align-items:center;gap:10px;
+    padding:8px 14px;cursor:pointer;font-size:13px;
+    border-bottom:1px solid rgba(42,52,71,.35);
+  }
+  .cam:hover{background:var(--bg-3)}
+  .cam.active{background:var(--bg-3);box-shadow:inset 3px 0 0 var(--live)}
+  .cam img{width:52px;height:38px;object-fit:cover;border-radius:5px;background:#000;flex-shrink:0}
+  .cam .noimg{width:52px;height:38px;border-radius:5px;background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--text-dim);flex-shrink:0}
+  .cam .camname{flex:1;overflow:hidden}
+  .cam .camname .t1{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cam .camname .t2{font-size:10.5px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  #playerArea{
+    flex:1;display:flex;flex-direction:column;
+    min-width:0;background:#0a0d13;
+  }
+  #playerHead{
+    display:flex;align-items:center;gap:12px;
+    padding:10px 16px;border-bottom:1px solid var(--line);
+    background:var(--bg-2);min-height:52px;flex-wrap:wrap;
+  }
+  #nowTitle{font-weight:600;font-size:15px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:120px}
+  #streamInfo{font-size:12px;color:var(--text-dim);white-space:nowrap}
+  .badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;white-space:nowrap}
+  .badge.live{background:rgba(93,201,138,.15);color:var(--live);border:1px solid rgba(93,201,138,.4)}
+  .badge.try{background:rgba(245,185,66,.12);color:var(--amber);border:1px solid rgba(245,185,66,.35)}
+  .badge.err{background:rgba(227,93,93,.12);color:var(--err);border:1px solid rgba(227,93,93,.35)}
+  #viewToggle{display:flex;gap:4px;background:var(--bg-3);border-radius:8px;padding:3px}
+  #viewToggle button{background:none;border:none;color:var(--text-dim);font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer}
+  #viewToggle button.on{background:var(--amber);color:#1a1206;font-weight:600}
+  #videoWrap{flex:1;display:flex;align-items:center;justify-content:center;position:relative;min-height:0}
+  #stillImg{max-width:100%;max-height:100%;display:none;background:#000}
+  iframe#playerFrame{width:100%;height:100%;border:none;display:none;background:#000}
+  #placeholder{
+    text-align:center;color:var(--text-dim);padding:30px;max-width:440px;
+  }
+  #placeholder .cam-ico{font-size:54px;margin-bottom:14px;filter:grayscale(.3)}
+  #placeholder h2{color:var(--text);font-size:18px;margin-bottom:8px;font-weight:600}
+  #placeholder p{font-size:13px;line-height:1.6}
+  #placeholder input{
+    margin-top:14px;width:100%;background:var(--bg-3);border:1px solid var(--line);
+    color:var(--text);padding:9px 12px;border-radius:var(--radius);font-size:13px;outline:none;
+  }
+  #overlayMsg{
+    position:absolute;inset:0;display:none;
+    align-items:center;justify-content:center;flex-direction:column;gap:12px;
+    background:rgba(10,13,19,.85);color:var(--text);font-size:14px;text-align:center;padding:20px;
+  }
+  #overlayMsg .spin{font-size:28px;display:inline-block;animation:rot 1s linear infinite}
+  #overlayMsg button{
+    background:var(--bg-3);border:1px solid var(--line);color:var(--text);
+    padding:8px 16px;border-radius:var(--radius);cursor:pointer;font-size:13px;
+  }
+  #overlayMsg button:hover{border-color:var(--amber)}
+
+  footer{
+    padding:7px 18px;background:var(--bg-2);border-top:1px solid var(--line);
+    font-size:12px;color:var(--text-dim);display:flex;gap:16px;align-items:center;flex-wrap:wrap;
+  }
+  footer .stat b{color:var(--text)}
+  #toast{
+    position:fixed;bottom:54px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--bg-3);border:1px solid var(--amber);color:var(--text);
+    padding:10px 18px;border-radius:var(--radius);font-size:13px;
+    opacity:0;pointer-events:none;transition:.3s;z-index:50;max-width:90vw;text-align:center;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .loading-block{padding:24px;text-align:center;color:var(--text-dim);font-size:13px}
+  .empty{padding:24px;text-align:center;color:var(--text-dim);font-size:13px;line-height:1.6}
+
+  ::-webkit-scrollbar{width:9px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+  ::-webkit-scrollbar-thumb:hover{background:#3a4660}
+
+  @media (max-width:860px){
+    main{flex-direction:column;overflow-y:auto}
+    #countries,#cams{width:100%;min-width:0;max-height:220px;border-right:none;border-bottom:1px solid var(--line)}
+    #playerArea{min-height:320px}
+    header{gap:8px}
+    #apiKey{width:100%;max-width:none;order:5}
+    #keyLink{order:6}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .logo .dot,#updateBtn .spin,#overlayMsg .spin{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="dot"></span>CANLI BAKIŞ<small>dünya web kameraları</small></div>
+  <input id="search" type="text" placeholder="Ülke veya kamera ara…">
+  <input id="apiKey" type="password" placeholder="Windy Webcams API anahtarı">
+  <a id="keyLink" href="https://api.windy.com/keys" target="_blank" rel="noopener">ücretsiz anahtar al ↗</a>
+  <button id="updateBtn" title="Seçili ülkenin kamera listesini yeniden indirir">
+    <span id="updIcon">⟳</span> Listeyi Yenile
+  </button>
+  <span id="lastUpdate"></span>
+</header>
+
+<main>
+  <nav id="countries">
+    <div class="col-title">Ülkeler</div>
+    <div id="countryList"></div>
+  </nav>
+
+  <section id="cams">
+    <div class="col-title" id="camColTitle">Kameralar</div>
+    <div id="camList"><div class="empty">Soldan bir ülke seçin.<br>O ülkedeki açık web kameraları burada listelenecek.</div></div>
+  </section>
+
+  <section id="playerArea">
+    <div id="playerHead">
+      <span id="nowTitle">Kamera seçilmedi</span>
+      <span id="streamInfo"></span>
+      <span id="liveBadge" class="badge err" style="display:none"></span>
+      <div id="viewToggle" style="display:none">
+        <button id="btnStill" class="on">Anlık kare</button>
+        <button id="btnPlayer">Windy oynatıcı</button>
+      </div>
+    </div>
+    <div id="videoWrap">
+      <div id="placeholder">
+        <div class="cam-ico">🌍</div>
+        <h2>İzlemeye hazır</h2>
+        <p>Bu uygulama <b style="color:var(--amber)">Windy Webcams API</b>'sini kullanır; her kamera, sahibinin herkese açık olarak paylaştığı yasal bir yayındır. Devam etmek için önce ücretsiz bir API anahtarı alıp yukarıya yapıştırın, sonra bir ülke ve kamera seçin.</p>
+        <input id="placeholderKey" type="password" placeholder="API anahtarını buraya da girebilirsiniz">
+      </div>
+      <img id="stillImg" alt="Web kamerası anlık görüntüsü">
+      <iframe id="playerFrame" allow="autoplay; fullscreen" loading="lazy"></iframe>
+      <div id="overlayMsg"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span class="stat">Ülke: <b id="statCountries">–</b></span>
+  <span class="stat">Seçili ülkede kamera: <b id="statCams">–</b></span>
+  <span class="stat">Yenileme: <b id="statRefresh">60 sn</b></span>
+  <span style="margin-left:auto">Kaynak: Windy Webcams API — yalnızca herkese açık, izinli yayınlar</span>
+</footer>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+  const API = "https://api.windy.com/webcams/api/v3";
+  const REFRESH_MS = 60000; // ücretsiz katmanda görsel token'ları ~10 dk geçerli; 60 sn'de bir tazeliyoruz
+
+  const TR_NAMES = {
+    TR:"Türkiye", DE:"Almanya", US:"ABD", GB:"Birleşik Krallık", FR:"Fransa",
+    IT:"İtalya", ES:"İspanya", NL:"Hollanda", AZ:"Azerbaycan", RU:"Rusya",
+    GR:"Yunanistan", BG:"Bulgaristan", IR:"İran", IQ:"Irak", SA:"Suudi Arabistan",
+    AE:"BAE", EG:"Mısır", IN:"Hindistan", PK:"Pakistan", CN:"Çin", JP:"Japonya",
+    KR:"Güney Kore", BR:"Brezilya", AR:"Arjantin", MX:"Meksika", CA:"Kanada",
+    AU:"Avustralya", AT:"Avusturya", CH:"İsviçre", SE:"İsveç", NO:"Norveç",
+    DK:"Danimarka", FI:"Finlandiya", PL:"Polonya", UA:"Ukrayna", RO:"Romanya",
+    HU:"Macaristan", CZ:"Çekya", PT:"Portekiz", BE:"Belçika", RS:"Sırbistan",
+    HR:"Hırvatistan", BA:"Bosna-Hersek", MK:"Kuzey Makedonya", AL:"Arnavutluk",
+    GE:"Gürcistan", KZ:"Kazakistan", UZ:"Özbekistan", TM:"Türkmenistan",
+    KG:"Kırgızistan", CY:"Kıbrıs", IL:"İsrail", JO:"Ürdün", LB:"Lübnan",
+    MA:"Fas", DZ:"Cezayir", TN:"Tunus", QA:"Katar", KW:"Kuveyt", BH:"Bahreyn",
+    OM:"Umman", ID:"Endonezya", MY:"Malezya", TH:"Tayland", VN:"Vietnam",
+    PH:"Filipinler", ZA:"Güney Afrika", NG:"Nijerya", KE:"Kenya", IS:"İzlanda",
+    IE:"İrlanda", NZ:"Yeni Zelanda", SG:"Singapur", IT2:"İtalya", IE2:"İrlanda",
+    LU:"Lüksemburg", MT:"Malta", EE:"Estonya", LV:"Letonya", LT:"Litvanya",
+    SI:"Slovenya", SK:"Slovakya", MD:"Moldova", MC:"Monako", AD:"Andorra",
+    LI:"Liechtenstein", SM:"San Marino", VA:"Vatikan", FO:"Faroe Adaları",
+    GL:"Grönland", CL:"Şili", CO:"Kolombiya", PE:"Peru", EC:"Ekvador",
+    UY:"Uruguay", PY:"Paraguay", BO:"Bolivya", VE:"Venezuela", CR:"Kosta Rika",
+    PA:"Panama", CU:"Küba", DO:"Dominik Cumhuriyeti", JM:"Jamaika"
+  };
+  // Basit, elle hazırlanmış ülke kodu listesi (dünyanın büyük bölümünü kapsar).
+  const COUNTRY_CODES = Object.keys(TR_NAMES).filter(c => c.length===2);
+
+  let activeCountry = null;
+  let activeCamId = null;
+  let camsById = new Map();
+  let refreshTimer = null;
+  let viewMode = "still"; // "still" | "player"
+
+  const $ = id => document.getElementById(id);
+
+  function apiKey(){
+    return ($("apiKey").value || $("placeholderKey").value || "").trim();
+  }
+  function syncKeyInputs(v){
+    $("apiKey").value = v; $("placeholderKey").value = v;
+  }
+  $("apiKey").addEventListener("input", e => syncKeyInputs(e.target.value));
+  $("placeholderKey").addEventListener("input", e => syncKeyInputs(e.target.value));
+
+  function flagEmoji(code){
+    if(!/^[A-Z]{2}$/.test(code)) return "🏳️";
+    return String.fromCodePoint(...[...code].map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
+  }
+  function toast(msg, ms=3200){
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(t._h);
+    t._h = setTimeout(()=>t.classList.remove("show"), ms);
+  }
+  function setBadge(type, text){
+    const b = $("liveBadge");
+    if(!type){ b.style.display="none"; return; }
+    b.style.display="inline-block";
+    b.className = "badge " + type;
+    b.textContent = text;
+  }
+  function showOverlay(html){
+    const o = $("overlayMsg");
+    o.innerHTML = html;
+    o.style.display = "flex";
+  }
+  function hideOverlay(){ $("overlayMsg").style.display = "none"; }
+
+  async function apiFetch(path){
+    const key = apiKey();
+    if(!key) throw new Error("NEEDS_KEY");
+    const res = await fetch(API + path, { headers: { "x-windy-api-key": key } });
+    if(res.status === 401 || res.status === 403) throw new Error("BAD_KEY");
+    if(!res.ok) throw new Error("HTTP_" + res.status);
+    return res.json();
+  }
+
+  /* ---------------- ÜLKE LİSTESİ ---------------- */
+  function renderCountries(filter){
+    const wrap = $("countryList");
+    const q = (filter||"").toLocaleLowerCase("tr");
+    const list = COUNTRY_CODES
+      .map(code => ({ code, name: TR_NAMES[code], flag: flagEmoji(code) }))
+      .filter(c => !q || c.name.toLocaleLowerCase("tr").includes(q))
+      .sort((a,b)=>{
+        if(a.code==="TR") return -1;
+        if(b.code==="TR") return 1;
+        return a.name.localeCompare(b.name,"tr");
+      });
+    if(!list.length){ wrap.innerHTML = '<div class="empty">Eşleşen ülke yok.</div>'; return; }
+    wrap.innerHTML = list.map(c => `
+      <div class="country ${c.code===activeCountry?'active':''}" data-code="${c.code}">
+        <span class="flag">${c.flag}</span>
+        <span class="cname">${c.name}</span>
+      </div>`).join("");
+    $("statCountries").textContent = COUNTRY_CODES.length;
+  }
+
+  /* ---------------- KAMERA LİSTESİ ---------------- */
+  async function loadCams(code, isManualRefresh){
+    activeCountry = code;
+    activeCamId = null;
+    camsById.clear();
+    stopPlayback();
+    const country = TR_NAMES[code];
+    $("camColTitle").textContent = `${flagEmoji(code)} ${country} — Kameralar`;
+    $("camList").innerHTML = '<div class="loading-block">Kameralar indiriliyor…</div>';
+
+    if(!apiKey()){
+      $("camList").innerHTML = '<div class="empty">Önce üstteki kutuya bir <b>Windy Webcams API</b> anahtarı girin (ücretsiz alınabilir), ardından ülke seçimini tekrarlayın.</div>';
+      return;
+    }
+
+    const btn = $("updateBtn"), icon = $("updIcon");
+    if(isManualRefresh){ btn.disabled = true; icon.classList.add("spin"); }
+
+    try{
+      const data = await apiFetch(`/webcams?countries=${code}&limit=50&include=images,location,categories&lang=tr`);
+      const list = (data.result && data.result.webcams) || [];
+      list.forEach(w => camsById.set(String(w.webcamId), w));
+      $("statCams").textContent = (data.result && data.result.total != null) ? data.result.total : list.length;
+      $("lastUpdate").textContent = "Son güncelleme: " + new Date().toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});
+      if(isManualRefresh) toast(`${country} için kamera listesi güncellendi.`, 2600);
+      renderCams();
+    }catch(err){
+      handleApiError(err, $("camList"));
+    }finally{
+      if(isManualRefresh){ btn.disabled = false; icon.classList.remove("spin"); }
+    }
+  }
+
+  function handleApiError(err, targetEl){
+    let msg;
+    if(err.message === "NEEDS_KEY") msg = 'Önce üstteki kutuya bir <b>Windy Webcams API</b> anahtarı girin.';
+    else if(err.message === "BAD_KEY") msg = 'API anahtarı geçersiz görünüyor. Anahtarınızı kontrol edip tekrar deneyin.';
+    else msg = 'Veri alınamadı (' + err.message + '). İnternet bağlantınızı kontrol edip tekrar deneyin.';
+    if(targetEl) targetEl.innerHTML = `<div class="empty">${msg}</div>`;
+    toast(msg.replace(/<[^>]+>/g,""), 4500);
+  }
+
+  function renderCams(filter){
+    const wrap = $("camList");
+    const q = (filter||"").toLocaleLowerCase("tr");
+    const list = [...camsById.values()]
+      .filter(w => !q || (w.title||"").toLocaleLowerCase("tr").includes(q) || ((w.location&&w.location.city)||"").toLocaleLowerCase("tr").includes(q));
+    if(!list.length){
+      wrap.innerHTML = camsById.size
+        ? '<div class="empty">Eşleşen kamera yok.</div>'
+        : '<div class="empty">Bu ülke için Windy veritabanında şu anda açık kamera bulunamadı.</div>';
+      return;
+    }
+    wrap.innerHTML = list.map(w => {
+      const thumb = w.images && w.images.current && (w.images.current.thumbnail || w.images.current.icon);
+      const img = thumb
+        ? `<img src="${thumb}" loading="lazy" onerror="this.outerHTML='<div class=noimg>🌍</div>'">`
+        : `<div class="noimg">🌍</div>`;
+      const city = (w.location && (w.location.city || w.location.region)) || "";
+      return `
+      <div class="cam ${String(w.webcamId)===activeCamId?'active':''}" data-id="${w.webcamId}">
+        ${img}
+        <span class="camname">
+          <span class="t1">${(w.title||"İsimsiz kamera")}</span>
+          <span class="t2">${city}</span>
+        </span>
+      </div>`;
+    }).join("");
+  }
+
+  /* ---------------- OYNATICI ---------------- */
+  function stopPlayback(){
+    clearInterval(refreshTimer); refreshTimer = null;
+    $("stillImg").style.display = "none";
+    $("stillImg").removeAttribute("src");
+    $("playerFrame").style.display = "none";
+    $("playerFrame").removeAttribute("src");
+  }
+
+  function selectCam(id){
+    const w = camsById.get(id);
+    if(!w) return;
+    activeCamId = id;
+    viewMode = "still";
+    $("btnStill").classList.add("on"); $("btnPlayer").classList.remove("on");
+    $("placeholder").style.display = "none";
+    $("nowTitle").textContent = w.title || "İsimsiz kamera";
+    const city = (w.location && (w.location.city || w.location.region || w.location.country)) || "";
+    $("streamInfo").textContent = city;
+    renderCams($("search")._camFilter);
+    loadCamDetail(id, true);
+  }
+
+  async function loadCamDetail(id, initial){
+    hideOverlay();
+    setBadge("try","yükleniyor…");
+    showOverlay(`<span class="spin">⟳</span><div>Kamera görüntüsü alınıyor…</div>`);
+    try{
+      const data = await apiFetch(`/webcams/${id}?include=images,player,urls,location&lang=tr`);
+      const w = data.result || data;
+      camsById.set(id, { ...camsById.get(id), ...w });
+      applyCamData(w);
+      clearInterval(refreshTimer);
+      refreshTimer = setInterval(()=>loadCamDetail(id,false), REFRESH_MS);
+    }catch(err){
+      setBadge("err","yayın alınamadı");
+      showOverlay(`
+        <div style="font-size:34px">📡</div>
+        <div>Bu kameranın görüntüsü şu anda alınamadı.</div>
+        <div style="color:var(--text-dim);font-size:12px;max-width:380px">${
+          err.message === "BAD_KEY" ? "API anahtarınız geçersiz görünüyor." :
+          err.message === "NEEDS_KEY" ? "Önce bir API anahtarı girmelisiniz." :
+          "Kamera kapanmış ya da geçici olarak çevrimdışı olabilir."
+        }</div>
+        <button onclick="document.getElementById('updateBtn').click()">⟳ Listeyi Yenile</button>`);
+      if(!initial) toast("Kamera görüntüsü yenilenemedi, 60 sn sonra tekrar denenecek.", 3000);
+    }
+  }
+
+  function applyCamData(w){
+    const still = w.images && w.images.current && (w.images.current.preview || w.images.current.thumbnail);
+    const playerUrl = w.player && (w.player.day || w.player.live || w.player.month);
+    $("viewToggle").style.display = playerUrl ? "flex" : "none";
+
+    if(viewMode === "player" && playerUrl){
+      $("stillImg").style.display = "none";
+      const f = $("playerFrame");
+      f.src = playerUrl; f.style.display = "block";
+      hideOverlay();
+      setBadge("live","● YAYINDA");
+    } else if(still){
+      $("playerFrame").style.display = "none";
+      const img = $("stillImg");
+      img.onload = () => { hideOverlay(); setBadge("live","● GÜNCEL KARE"); };
+      img.onerror = () => { setBadge("err","görüntü yok"); };
+      img.src = still;
+      img.style.display = "block";
+    } else {
+      setBadge("err","görüntü yok");
+      showOverlay(`<div>Bu kamera için görüntü verisi bulunamadı.</div>`);
+    }
+  }
+
+  $("btnStill").addEventListener("click", ()=>{
+    viewMode = "still";
+    $("btnStill").classList.add("on"); $("btnPlayer").classList.remove("on");
+    const w = camsById.get(activeCamId);
+    if(w) applyCamData(w);
+  });
+  $("btnPlayer").addEventListener("click", ()=>{
+    viewMode = "player";
+    $("btnPlayer").classList.add("on"); $("btnStill").classList.remove("on");
+    const w = camsById.get(activeCamId);
+    if(w) applyCamData(w);
+  });
+
+  /* ---------------- OLAYLAR ---------------- */
+  $("countryList").addEventListener("click", e => {
+    const el = e.target.closest(".country");
+    if(!el) return;
+    $("search").value = ""; $("search")._camFilter = "";
+    renderCountries();
+    loadCams(el.dataset.code, false);
+  });
+
+  $("camList").addEventListener("click", e => {
+    const el = e.target.closest(".cam");
+    if(!el) return;
+    selectCam(el.dataset.id);
+  });
+
+  $("search").addEventListener("input", e => {
+    const q = e.target.value.trim();
+    if(activeCountry){
+      e.target._camFilter = q;
+      renderCountries(q);
+      renderCams(q);
+    } else {
+      renderCountries(q);
+    }
+  });
+
+  $("updateBtn").addEventListener("click", () => {
+    if(activeCountry) loadCams(activeCountry, true);
+    else toast("Önce soldan bir ülke seçin.");
+  });
+
+  // Başlangıç
+  renderCountries();
+})();
+</script>
+</body>
+</html>
