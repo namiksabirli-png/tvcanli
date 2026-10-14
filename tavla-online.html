@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Online Tavla</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --felt: #0e2318;
+    --felt2: #143024;
+    --frame: #1b0f08;
+    --frame2: #3a2314;
+    --wood: #4a2c1c;
+    --cream: #ecdcb8;
+    --burgundy: #7c2a3a;
+    --gold: #d4af37;
+    --gold-soft: #e8c766;
+    --text: #f3ecd9;
+    --muted: #a99b7d;
+    --danger: #e2566a;
+    --success: #6fd3a0;
+    --white-chk-a: #f7f1df;
+    --white-chk-b: #cdbb92;
+    --black-chk-a: #4a4a4a;
+    --black-chk-b: #0c0c0c;
+    --radius: 18px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh;
+    font-family:'Poppins', sans-serif;
+    background:
+      radial-gradient(circle at 20% 0%, rgba(212,175,55,0.08), transparent 45%),
+      linear-gradient(180deg, var(--frame), #120a06 70%);
+    color:var(--text);
+    display:flex;
+    justify-content:center;
+    padding:14px 8px 30px;
+  }
+  .wrap{width:100%; max-width:1500px; display:flex; flex-direction:column; gap:14px;}
+  h1.title{
+    font-family:'Cinzel', serif;
+    text-align:center;
+    font-size:30px;
+    margin:4px 0 0;
+    letter-spacing:1px;
+    color:var(--gold-soft);
+    text-shadow:0 2px 12px rgba(212,175,55,0.25);
+  }
+  .subtitle{text-align:center;color:var(--muted);font-size:13px;margin:-4px 0 6px;}
+
+  .card{
+    background:linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01));
+    border:1px solid rgba(212,175,55,0.18);
+    border-radius:var(--radius);
+    padding:18px;
+    box-shadow:0 20px 46px rgba(0,0,0,0.5);
+  }
+
+  .hidden{display:none !important;}
+
+  /* ---------- SETUP ---------- */
+  .mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0 4px;}
+  .mode-btn{
+    background:rgba(255,255,255,0.04);
+    border:1.5px solid rgba(255,255,255,0.1);
+    border-radius:14px;
+    padding:15px 8px;
+    text-align:center;
+    font-size:13.5px;
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .mode-btn .emoji{display:block;font-size:24px;margin-bottom:5px;}
+  .mode-btn.selected{border-color:var(--gold); background:rgba(212,175,55,0.1);}
+  .mode-btn:hover{transform:translateY(-2px);}
+
+  label.field-label{display:block;font-size:11.5px;color:var(--muted);letter-spacing:0.4px;margin:14px 0 6px;}
+  input[type=text]{
+    width:100%;
+    background:rgba(0,0,0,0.3);
+    border:1.5px solid rgba(255,255,255,0.12);
+    border-radius:10px;
+    padding:10px 12px;
+    color:var(--text);
+    font-family:'Poppins', sans-serif;
+    font-size:14px;
+  }
+  .diff-row{display:flex;gap:8px;}
+  .diff-btn{
+    flex:1;text-align:center;padding:9px 4px;border-radius:10px;
+    border:1.5px solid rgba(255,255,255,0.1);
+    background:rgba(255,255,255,0.03); color:var(--muted); font-size:12.5px; cursor:pointer;
+  }
+  .diff-btn.selected{border-color:var(--gold-soft); color:var(--text); background:rgba(212,175,55,0.12);}
+
+  .primary-btn{
+    width:100%; margin-top:16px; padding:13px; border:none; border-radius:12px;
+    background:linear-gradient(90deg, var(--burgundy), #9c3a4d);
+    color:#fdf3e7; font-family:'Cinzel', serif; font-size:15px; letter-spacing:0.5px; cursor:pointer;
+    box-shadow:0 10px 26px rgba(124,42,58,0.4);
+  }
+  .ghost-btn{
+    width:100%; padding:10px; margin-top:9px; border-radius:12px;
+    border:1.5px solid rgba(255,255,255,0.15); background:transparent; color:var(--muted);
+    font-family:'Poppins',sans-serif; font-size:13px; cursor:pointer;
+  }
+
+  /* ---------- RULES PANEL ---------- */
+  .rules-body{font-size:13px; line-height:1.65; color:var(--text);}
+  .rules-body h3{
+    font-family:'Cinzel', serif; font-size:14.5px; color:var(--gold-soft);
+    margin:16px 0 6px; letter-spacing:0.3px;
+  }
+  .rules-body h3:first-child{margin-top:2px;}
+  .rules-body ul{margin:0 0 4px; padding-left:18px;}
+  .rules-body li{margin-bottom:5px;}
+  .rules-body b{color:var(--gold-soft);}
+
+  /* ---------- GAME HEADER ---------- */
+  .game-header{display:flex; gap:10px; align-items:center;}
+  .player-badge{
+    flex:1; display:flex; align-items:center; gap:9px;
+    background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.08);
+    border-radius:13px; padding:9px 11px; transition:border-color .2s ease, background .2s ease;
+  }
+  .player-badge.active{border-color:var(--gold-soft); background:rgba(212,175,55,0.09);}
+  .badge-dot{width:16px;height:16px;border-radius:50%;flex:0 0 auto; box-shadow: inset 0 -2px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.4);}
+  .badge-dot.white{background:radial-gradient(circle at 35% 30%, var(--white-chk-a), var(--white-chk-b));}
+  .badge-dot.black{background:radial-gradient(circle at 35% 30%, var(--black-chk-a), var(--black-chk-b));}
+  .badge-info .bname{font-size:12.5px; font-weight:600;}
+  .badge-info .bmeta{font-size:10.5px; color:var(--muted);}
+
+  .dice-area{display:flex; gap:8px; align-items:center; justify-content:center;}
+  .die{
+    width:clamp(34px,4vw,46px);height:clamp(34px,4vw,46px);border-radius:8px;
+    background:linear-gradient(160deg,#fdf8ec,#d9cfa8);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700; font-size:16px; color:#2a1c10;
+    box-shadow:0 3px 8px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(0,0,0,0.15);
+  }
+  .die.used{opacity:0.28; text-decoration:line-through;}
+
+  .msg-bar{
+    text-align:center; font-size:12.5px; color:var(--gold-soft);
+    min-height:18px; margin:2px 0 8px;
+  }
+
+  /* ---------- BOARD ---------- */
+  .board-scroll{overflow-x:auto; padding-bottom:4px;}
+  .board{
+    min-width:600px;
+    width:100%;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(255,255,255,0.03), transparent 60%),
+      linear-gradient(180deg, var(--felt), var(--felt2));
+    border:clamp(6px,1vw,14px) solid var(--wood);
+    border-radius:14px;
+    box-shadow: inset 0 0 30px rgba(0,0,0,0.5), 0 14px 34px rgba(0,0,0,0.5);
+    display:grid;
+    grid-template-columns: repeat(6,1fr) clamp(28px,3.2vw,54px) repeat(6,1fr) clamp(48px,5.5vw,86px);
+    grid-template-rows: clamp(180px,26vw,340px) clamp(180px,26vw,340px);
+    padding:clamp(8px,1.2vw,20px) clamp(6px,1vw,16px);
+    gap:0 2px;
+    position:relative;
+  }
+  .point{
+    position:relative;
+    height:100%;
+    cursor:pointer;
+  }
+  .point .tri{
+    position:absolute; left:6%; right:6%;
+    height:92%;
+  }
+  .point.top .tri{ top:0; clip-path: polygon(0 0, 100% 0, 50% 100%); }
+  .point.bottom .tri{ bottom:0; clip-path: polygon(50% 0, 0 100%, 100% 100%); }
+  .point.light .tri{ background:linear-gradient(180deg, var(--cream), #cdb98a); }
+  .point.dark .tri{ background:linear-gradient(180deg, var(--burgundy), #5a1c28); }
+  .point.legal .tri{ outline:3px solid var(--success); outline-offset:-3px; filter:brightness(1.15); }
+  .point.legal::after{
+    content:"";
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:14px;height:14px;border-radius:50%;
+    background:rgba(111,211,160,0.85);
+    box-shadow:0 0 10px rgba(111,211,160,0.8);
+  }
+
+  .checker-stack{
+    position:absolute; left:50%; transform:translateX(-50%);
+    width:clamp(34px,4.6vw,64px); display:flex; flex-direction:column; align-items:center;
+  }
+  .point.top .checker-stack{ top:6px; }
+  .point.bottom .checker-stack{ bottom:6px; flex-direction:column-reverse; }
+  .checker{
+    width:clamp(32px,4.4vw,60px);height:clamp(32px,4.4vw,60px);border-radius:50%;
+    margin-top:clamp(-16px,-2vw,-24px);
+    box-shadow:0 3px 6px rgba(0,0,0,0.5), inset 0 -3px 5px rgba(0,0,0,0.25), inset 0 2px 3px rgba(255,255,255,0.25);
+    display:flex; align-items:center; justify-content:center;
+    font-size:clamp(10.5px,1.2vw,15px); font-weight:700;
+    position:relative;
+  }
+  .point.top .checker:first-child{margin-top:0;}
+  .point.bottom .checker:last-child{margin-top:0;}
+  .checker.white{ background:radial-gradient(circle at 35% 30%, var(--white-chk-a), var(--white-chk-b)); color:#5a4a2c;}
+  .checker.black{ background:radial-gradient(circle at 35% 30%, var(--black-chk-a), var(--black-chk-b)); color:#e9e2c8;}
+  .checker.selectable{ outline:2px solid var(--gold-soft); }
+  .checker.blot{ box-shadow:0 2px 5px rgba(0,0,0,0.5), 0 0 0 2px rgba(226,86,106,0.55); }
+
+  .point-label{
+    position:absolute; font-size:clamp(9px,1vw,13px); color:rgba(243,236,217,0.4);
+    left:50%; transform:translateX(-50%);
+  }
+  .point.top .point-label{ top:-15px; }
+  .point.bottom .point-label{ bottom:-15px; }
+
+  .bar-col{
+    grid-row:1 / 3; grid-column:7;
+    display:flex; flex-direction:column; justify-content:space-between; align-items:center;
+    padding:10px 4px;
+    background:linear-gradient(180deg, #9c2430, #6e1620 45%, #9c2430);
+    border-left:2px solid rgba(212,175,55,0.45);
+    border-right:2px solid rgba(212,175,55,0.45);
+    box-shadow: inset 0 0 12px rgba(0,0,0,0.45);
+  }
+  .bar-half{display:flex; flex-direction:column; align-items:center; gap:4px;}
+  .bar-half .checker{width:clamp(24px,3.2vw,42px);height:clamp(24px,3.2vw,42px);margin-top:clamp(-12px,-1.4vw,-18px);}
+  .bar-half .checker:first-child{margin-top:0;}
+  .bar-count{font-size:clamp(9px,0.9vw,12px); color:var(--muted); margin-top:2px;}
+
+  .off-col{
+    grid-row:1/3; grid-column:14;
+    display:flex; flex-direction:column; justify-content:space-between; align-items:center;
+    padding:8px 2px;
+  }
+  .off-half{
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    background:rgba(0,0,0,0.2); border-radius:8px; padding:6px 4px; width:100%;
+  }
+  .off-half .off-count{font-size:clamp(15px,1.8vw,22px); font-weight:700;}
+  .off-half.black-off .off-count{color:#dcd6c4;}
+  .off-half.white-off .off-count{color:#f7f1df;}
+  .off-half .off-mini{width:clamp(14px,1.6vw,20px);height:clamp(14px,1.6vw,20px);border-radius:50%;}
+  .off-half .off-mini.black{background:radial-gradient(circle at 35% 30%, var(--black-chk-a), var(--black-chk-b));}
+  .off-half .off-mini.white{background:radial-gradient(circle at 35% 30%, var(--white-chk-a), var(--white-chk-b));}
+
+  .controls-row{display:flex; gap:10px; margin-top:12px;}
+  .controls-row .primary-btn, .controls-row .ghost-btn{margin-top:0;}
+
+  /* ---------- END SCREEN ---------- */
+  .end-emoji{font-size:54px; text-align:center;}
+  .end-title{font-family:'Cinzel',serif; text-align:center; font-size:21px; color:var(--gold-soft); margin:4px 0 2px;}
+  .end-sub{text-align:center; color:var(--muted); font-size:13px; margin-bottom:14px;}
+
+  footer.credit{text-align:center; font-size:11px; color:rgba(169,155,125,0.55); margin-top:2px;}
+
+  @media (max-width:480px){
+    h1.title{font-size:24px;}
+  }
+  /* ---------- ONLINE ---------- */
+  .mode-grid.three{grid-template-columns:1fr 1fr 1fr;}
+  .link-box{
+    display:flex; gap:8px; align-items:center; margin-top:8px;
+    background:rgba(0,0,0,0.3); border:1.5px dashed rgba(212,175,55,0.45);
+    border-radius:10px; padding:10px 12px; font-size:13px; word-break:break-all;
+  }
+  .link-box code{flex:1; color:var(--gold-soft); font-family:monospace; font-size:12.5px;}
+  .share-row{display:flex; gap:8px; margin-top:10px;}
+  .share-row .ghost-btn{margin-top:0;}
+  .wait-note{color:var(--muted); font-size:13px; text-align:center; margin-top:14px; line-height:1.6;}
+  .spinner{
+    width:26px;height:26px;border-radius:50%; margin:14px auto 0;
+    border:3px solid rgba(212,175,55,0.2); border-top-color:var(--gold-soft);
+    animation:spin 1s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .warn{color:var(--danger); font-size:12px; margin-top:10px; line-height:1.5;}
+  .net-status{display:flex; align-items:center; justify-content:center; gap:6px; font-size:11px; color:var(--muted); margin-top:6px;}
+  .net-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);}
+  .net-dot.on{background:var(--success); box-shadow:0 0 6px var(--success);}
+  .net-dot.off{background:var(--danger);}
+  .you-tag{font-size:10px; color:var(--success); margin-left:4px;}
+  button:disabled{cursor:not-allowed;}
+  @media (max-width:520px){
+    .mode-grid.three{grid-template-columns:1fr;}
+    .game-header{flex-wrap:wrap;}
+    .dice-area{order:3; width:100%;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="title">🎲 Tavla</h1>
+  <p class="subtitle">Arkadaşına link gönder, internetten birlikte oyna.</p>
+
+  <!-- ============ SETUP SCREEN ============ -->
+  <div class="card" id="setup-screen">
+    <label class="field-label">OYUN MODU</label>
+    <div class="mode-grid three">
+      <div class="mode-btn selected" id="mode-online" data-mode="online">
+        <span class="emoji">🌐</span>İnternetten (Link ile)
+      </div>
+      <div class="mode-btn" id="mode-two" data-mode="two">
+        <span class="emoji">🧑‍🤝‍🧑</span>Aynı Cihazda 2 Kişi
+      </div>
+      <div class="mode-btn" id="mode-cpu" data-mode="cpu">
+        <span class="emoji">🤖</span>Bilgisayara Karşı
+      </div>
+    </div>
+
+    <div id="cpu-difficulty" class="hidden">
+      <label class="field-label">BİLGİSAYAR ZORLUĞU</label>
+      <div class="diff-row">
+        <div class="diff-btn" data-diff="easy">Kolay</div>
+        <div class="diff-btn selected" data-diff="normal">Normal</div>
+        <div class="diff-btn" data-diff="hard">Zor</div>
+      </div>
+    </div>
+
+    <label class="field-label" id="p1-label">ADIN (Beyaz)</label>
+    <input type="text" id="p1-name" placeholder="Örn: Kaan" maxlength="14">
+
+    <div id="p2-field" class="hidden">
+      <label class="field-label">2. OYUNCU ADI (Siyah)</label>
+      <input type="text" id="p2-name" placeholder="Örn: Deniz" maxlength="14">
+    </div>
+
+    <button class="primary-btn" id="start-btn">Oda Kur ve Link Al 🔗</button>
+    <button class="ghost-btn" id="show-rules-btn">📖 Kuralları Öğren</button>
+  </div>
+
+  <!-- ============ HOST WAITING SCREEN ============ -->
+  <div class="card hidden" id="host-screen">
+    <div class="end-title" style="margin-top:0">Oda hazır 🎲</div>
+    <div class="end-sub">Bu linki arkadaşına gönder. Linke tıkladığı anda oyun başlar.</div>
+    <div class="link-box"><code id="invite-link">Bağlanılıyor…</code></div>
+    <div class="share-row">
+      <button class="ghost-btn" id="copy-link-btn">📋 Kopyala</button>
+      <button class="ghost-btn" id="wa-link-btn">💬 WhatsApp</button>
+      <button class="ghost-btn hidden" id="share-link-btn">📤 Paylaş</button>
+    </div>
+    <div id="file-warn" class="warn hidden">⚠️ Bu sayfa bilgisayarından dosya olarak açılmış. Link yalnızca sayfa internette yayınlandığında çalışır (örn. Netlify Drop veya GitHub Pages).</div>
+    <div class="spinner" id="host-spinner"></div>
+    <div class="wait-note" id="host-note">Rakibin bekleniyor… Bu sayfayı kapatma.</div>
+    <button class="ghost-btn" id="host-cancel-btn">Vazgeç</button>
+  </div>
+
+  <!-- ============ JOIN SCREEN ============ -->
+  <div class="card hidden" id="join-screen">
+    <div class="end-title" style="margin-top:0">Tavla davetin var! 🎲</div>
+    <div class="end-sub">Adını yaz ve masaya otur. Siyah pullarla oynayacaksın.</div>
+    <label class="field-label">ADIN (Siyah)</label>
+    <input type="text" id="join-name" placeholder="Örn: Deniz" maxlength="14">
+    <button class="primary-btn" id="join-btn">Oyuna Katıl 🎬</button>
+    <div class="wait-note" id="join-note"></div>
+    <button class="ghost-btn" id="join-cancel-btn">Ana Menü</button>
+  </div>
+  <!-- ============ RULES PANEL ============ -->
+  <div class="card hidden" id="rules-screen">
+    <div class="rules-body" id="rules-body">
+      <h3>Oyunun Amacı</h3>
+      <ul>
+        <li>Kendi 15 pulunu rakibinden önce tahtanın dışına toplamak.</li>
+      </ul>
+
+      <h3>Tahta ve Dizilim</h3>
+      <ul>
+        <li>Tahta 24 üçgenden (hane/kapı bölgesi) oluşur, 1'den 24'e numaralandırılır.</li>
+        <li>Her oyuncunun 15 pulu vardır (Beyaz ve Siyah).</li>
+        <li>Standart dizilim: 24. hanede 2, 13. hanede 5, 8. hanede 3, 6. hanede 5 pul. Rakip bunun simetriğini kullanır.</li>
+        <li>Pullar, rakibin 24. hanesinden başlayıp kendi 1. hanesine (ev/toplama alanı) doğru ilerler.</li>
+      </ul>
+
+      <h3>Zar ve Hamle</h3>
+      <ul>
+        <li>Her oyuncu sırasında iki zar atar ve gösterdikleri sayı kadar pul ilerletir.</li>
+        <li>Zarlar aynı gelirse (<b>duble</b>, örn. 4-4), o sayı 4 kez oynanır.</li>
+        <li>İki zarın toplamı kadar tek bir pul ilerletilebilir, ya da iki ayrı pul ayrı zarlarla oynanabilir.</li>
+      </ul>
+
+      <h3>Hane Durumları</h3>
+      <ul>
+        <li><b>Kapı (güvenli hane):</b> Bir hanede aynı renkten 2+ pul varsa, rakip oraya giremez.</li>
+        <li><b>Açık pul (blot):</b> Bir hanede tek pul varsa, rakip tam üzerine gelirse o pulu "kırar".</li>
+      </ul>
+
+      <h3>Kırılan Pul (Bar)</h3>
+      <ul>
+        <li>Kırılan pul tahtanın ortasındaki bara konur.</li>
+        <li>Barda pulu olan oyuncu önce onu rakip evine (19-24 arası) sokmadan başka pul oynatamaz.</li>
+        <li>Zarlara denk gelen haneler rakip tarafından kapatılmışsa pul sokulamaz, sıra geçer.</li>
+      </ul>
+
+      <h3>Pul Toplama</h3>
+      <ul>
+        <li>15 pulun hepsi kendi evine (1-6 arası) gelmeden pul toplama başlamaz.</li>
+        <li>Zara denk gelen hanedeki pul dışarı alınır.</li>
+        <li>Zardan büyük hanede pul yoksa, en büyük hanedeki pul dışarı alınır.</li>
+      </ul>
+
+      <h3>Kazanma Türleri</h3>
+      <ul>
+        <li><b>Normal galibiyet (1 puan):</b> Rakip en az 1 pul toplamışken oyunu bitirmek.</li>
+        <li><b>Mars (2 puan):</b> Rakip hiç pul toplayamadan tüm pulları toplamak.</li>
+        <li><b>Katmerli Mars (3 puan):</b> Rakip hiç pul toplayamamış ve hâlâ senin evinde ya da barda pulu varken kazanmak.</li>
+        <li><b>Katlama küpü:</b> Gerçek tavlada bahsi ikiye katlamak için kullanılan opsiyonel bir zardır (1-2-4-8...); bu dijital sürümde sadeleştirme için kullanılmıyor.</li>
+      </ul>
+    </div>
+    <button class="primary-btn" id="rules-back-btn">Geri Dön</button>
+  </div>
+
+  <!-- ============ GAME SCREEN ============ -->
+  <div id="game-screen" class="hidden">
+    <div class="card" style="margin-bottom:12px;">
+      <div class="game-header">
+        <div class="player-badge" id="badge-white">
+          <div class="badge-dot white"></div>
+          <div class="badge-info"><div class="bname" id="badge-white-name">Beyaz</div><div class="bmeta">Ev: 1-6</div></div>
+        </div>
+        <div class="dice-area" id="dice-area"></div>
+        <div class="player-badge" id="badge-black">
+          <div class="badge-dot black"></div>
+          <div class="badge-info"><div class="bname" id="badge-black-name">Siyah</div><div class="bmeta">Ev: 19-24</div></div>
+        </div>
+      </div>
+      <div class="msg-bar" id="msg-bar">Başlamak için zar at.</div>
+      <div class="net-status hidden" id="net-status"><span class="net-dot" id="net-dot"></span><span id="net-text"></span></div>
+      <div class="controls-row">
+        <button class="primary-btn" id="roll-btn">Zar At 🎲</button>
+        <button class="ghost-btn" id="undo-btn" disabled>Geri Al ↩</button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:10px;">
+      <div class="board-scroll">
+        <div class="board" id="board"></div>
+      </div>
+    </div>
+
+    <button class="ghost-btn" id="quit-btn" style="margin-top:10px;">Oyundan Çık</button>
+  </div>
+
+  <!-- ============ END SCREEN ============ -->
+  <div id="end-screen" class="hidden">
+    <div class="card">
+      <div class="end-emoji" id="end-emoji">🏆</div>
+      <div class="end-title" id="end-title">Oyun Bitti!</div>
+      <div class="end-sub" id="end-sub"></div>
+      <button class="primary-btn" id="replay-btn">Tekrar Oyna 🔁</button>
+      <button class="ghost-btn" id="menu-btn">Ana Menüye Dön</button>
+    </div>
+  </div>
+
+  <footer class="credit">Tavla kurallarını öğrenmek ve pratik yapmak için hazırlanmıştır 🎲</footer>
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* =====================================================================
+   ENGINE
+   ===================================================================== */
+function createInitialState(){
+  const points = new Array(25).fill(null).map(()=>({color:null,count:0}));
+  points[24] = {color:'white', count:2};
+  points[13] = {color:'white', count:5};
+  points[8]  = {color:'white', count:3};
+  points[6]  = {color:'white', count:5};
+  points[1]  = {color:'black', count:2};
+  points[12] = {color:'black', count:5};
+  points[17] = {color:'black', count:3};
+  points[19] = {color:'black', count:5};
+  return { points, bar:{white:0,black:0}, off:{white:0,black:0} };
+}
+function dirOf(color){ return color==='white' ? -1 : 1; }
+function opp(color){ return color==='white' ? 'black' : 'white'; }
+function distance(color, point){ return color==='white' ? point : 25-point; }
+function entryPoint(color, die){ return color==='white' ? 25-die : die; }
+function isBlockedFor(state, color, point){
+  const p = state.points[point];
+  return p.color === opp(color) && p.count >= 2;
+}
+function allInHome(state, color){
+  const [lo,hi] = color==='white' ? [1,6] : [19,24];
+  for(let i=1;i<=24;i++){
+    const p = state.points[i];
+    if(p.color===color && (i<lo || i>hi)) return false;
+  }
+  if(state.bar[color] > 0) return false;
+  return true;
+}
+function canBearOff(state, color){ return allInHome(state, color); }
+function maxDistanceOnBoard(state, color){
+  let max = 0;
+  for(let i=1;i<=24;i++){
+    const p = state.points[i];
+    if(p.color===color){ const d = distance(color,i); if(d>max) max=d; }
+  }
+  return max;
+}
+function legalMovesForDie(state, color, die){
+  const moves = [];
+  if(state.bar[color] > 0){
+    const to = entryPoint(color, die);
+    if(!isBlockedFor(state, color, to)){
+      const destColor = state.points[to].color;
+      const isHit = destColor===opp(color) && state.points[to].count===1;
+      moves.push({from:'bar', to, die, isHit, isBearOff:false});
+    }
+    return moves;
+  }
+  const bearOffAllowed = canBearOff(state, color);
+  const maxDist = bearOffAllowed ? maxDistanceOnBoard(state,color) : 0;
+  for(let i=1;i<=24;i++){
+    const p = state.points[i];
+    if(p.color !== color || p.count<=0) continue;
+    const to = i + dirOf(color)*die;
+    if(to>=1 && to<=24){
+      if(!isBlockedFor(state,color,to)){
+        const destColor = state.points[to].color;
+        const isHit = destColor===opp(color) && state.points[to].count===1;
+        moves.push({from:i, to, die, isHit, isBearOff:false});
+      }
+    } else {
+      if(bearOffAllowed){
+        const d = distance(color,i);
+        if(d===die){ moves.push({from:i, to:'off', die, isHit:false, isBearOff:true}); }
+        else if(die>d && d===maxDist){ moves.push({from:i, to:'off', die, isHit:false, isBearOff:true}); }
+      }
+    }
+  }
+  return moves;
+}
+function hasAnyLegalMove(state, color, diceRemaining){
+  const uniqueDice = [...new Set(diceRemaining)];
+  for(const d of uniqueDice){ if(legalMovesForDie(state,color,d).length>0) return true; }
+  return false;
+}
+function applyMove(state, color, move){
+  if(move.from==='bar'){ state.bar[color]--; }
+  else { const src = state.points[move.from]; src.count--; if(src.count===0) src.color=null; }
+  if(move.to==='off'){ state.off[color]++; return {hit:false}; }
+  const dest = state.points[move.to];
+  let hit=false;
+  if(dest.color===opp(color) && dest.count===1){
+    hit=true; state.bar[opp(color)]++; dest.color=color; dest.count=1;
+  } else if(dest.color===color){ dest.count++; }
+  else { dest.color=color; dest.count=1; }
+  return {hit};
+}
+function checkWin(state, color){ return state.off[color]===15; }
+function winType(state, winnerColor){
+  const loser = opp(winnerColor);
+  if(state.off[loser] > 0) return {type:'normal', points:1};
+  const [lo,hi] = winnerColor==='white' ? [1,6] : [19,24];
+  let hasInHome = state.bar[loser] > 0;
+  if(!hasInHome){
+    for(let i=lo;i<=hi;i++){ if(state.points[i].color===loser){ hasInHome=true; break; } }
+  }
+  if(hasInHome) return {type:'backgammon', points:3};
+  return {type:'gammon', points:2};
+}
+
+/* =====================================================================
+   UI STATE
+   ===================================================================== */
+const el = id => document.getElementById(id);
+let G = null; // game session object
+
+function newSession(mode, diff, p1name, p2name, myColor){
+  return {
+    mode, diff,
+    myColor: myColor || null,          // only for online mode
+    players: { white:{name:p1name}, black:{name:p2name}, cpuColor: mode==='cpu' ? 'black' : null },
+    state: createInitialState(),
+    turnColor: 'white',
+    dice: [],
+    diceUsed: [],
+    selected: null,
+    history: [],
+    msg: '',
+    over: false,
+    winner: null
+  };
+}
+
+function clone(obj){ return JSON.parse(JSON.stringify(obj)); }
+
+const SCREENS = ["setup-screen","rules-screen","game-screen","end-screen","host-screen","join-screen"];
+function show(id){ SCREENS.forEach(s=>el(s).classList.toggle("hidden", s!==id)); }
+
+/* =====================================================================
+   NETWORK (PeerJS — doğrudan tarayıcıdan tarayıcıya bağlantı)
+   ===================================================================== */
+const NET = { peer:null, conn:null, role:null, roomId:null, connected:false, hostName:'', guestName:'' };
+const ROOM_PREFIX = 'tavla-tr-';
+
+function randomId(){
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  let s=''; for(let i=0;i<8;i++) s += chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+function inviteUrl(code){
+  const base = location.href.split('#')[0].split('?')[0];
+  return base + '?oda=' + code;
+}
+function peerAvailable(){ return typeof window.Peer === 'function'; }
+
+function netSend(msg){
+  if(NET.conn && NET.conn.open){ try{ NET.conn.send(msg); }catch(e){} }
+}
+function setNetStatus(on, text){
+  NET.connected = on;
+  const dot = el('net-dot'), txt = el('net-text');
+  if(!dot) return;
+  dot.className = 'net-dot ' + (on ? 'on' : 'off');
+  txt.textContent = text || (on ? 'Rakip bağlı' : 'Bağlantı yok');
+  if(G) render();
+}
+function closeNet(){
+  try{ if(NET.conn) NET.conn.close(); }catch(e){}
+  try{ if(NET.peer) NET.peer.destroy(); }catch(e){}
+  NET.peer=null; NET.conn=null; NET.role=null; NET.roomId=null; NET.connected=false;
+}
+
+/* ---- HOST ---- */
+function hostCreateRoom(name, attempt){
+  attempt = attempt||0;
+  if(!peerAvailable()){ alert('Bağlantı kütüphanesi yüklenemedi. İnternet bağlantını kontrol edip sayfayı yenile.'); return; }
+  closeNet();
+  NET.role = 'host'; NET.hostName = name;
+  const code = randomId();
+  NET.roomId = code;
+  show('host-screen');
+  el('invite-link').textContent = 'Oda oluşturuluyor…';
+  el('host-note').textContent = 'Rakibin bekleniyor… Bu sayfayı kapatma.';
+  el('host-spinner').classList.remove('hidden');
+  el('file-warn').classList.toggle('hidden', location.protocol !== 'file:');
+
+  const peer = new Peer(ROOM_PREFIX + code, {debug:0});
+  NET.peer = peer;
+  peer.on('open', ()=>{
+    el('invite-link').textContent = inviteUrl(code);
+  });
+  peer.on('connection', c=>{
+    if(NET.conn && NET.conn.open){
+      c.on('open', ()=>{ c.send({t:'full'}); setTimeout(()=>c.close(), 400); });
+      return;
+    }
+    attachConn(c);
+  });
+  peer.on('disconnected', ()=>{ try{ peer.reconnect(); }catch(e){} });
+  peer.on('error', err=>{
+    if(err.type==='unavailable-id' && attempt<3){ hostCreateRoom(name, attempt+1); return; }
+    el('invite-link').textContent = 'Oda kurulamadı: ' + (err.type||'hata') + '. Tekrar dene.';
+    el('host-spinner').classList.add('hidden');
+  });
+}
+
+/* ---- GUEST ---- */
+function guestJoin(code, name){
+  if(!peerAvailable()){ el('join-note').textContent='Bağlantı kütüphanesi yüklenemedi. Sayfayı yenile.'; return; }
+  closeNet();
+  NET.role = 'guest'; NET.roomId = code; NET.guestName = name;
+  el('join-note').textContent = 'Odaya bağlanılıyor…';
+  el('join-btn').disabled = true;
+  const peer = new Peer(undefined, {debug:0});
+  NET.peer = peer;
+  peer.on('open', ()=>{
+    const c = peer.connect(ROOM_PREFIX + code, {reliable:true});
+    attachConn(c);
+  });
+  peer.on('disconnected', ()=>{ try{ peer.reconnect(); }catch(e){} });
+  peer.on('error', err=>{
+    el('join-btn').disabled = false;
+    if(err.type==='peer-unavailable'){
+      el('join-note').textContent = 'Oda bulunamadı. Odayı kuran kişi sayfayı kapatmış olabilir — yeni link iste.';
+      if(G) setNetStatus(false, 'Oda kapalı');
+    } else {
+      el('join-note').textContent = 'Bağlantı hatası: ' + (err.type||'bilinmiyor');
+    }
+  });
+}
+
+function attachConn(c){
+  NET.conn = c;
+  c.on('open', ()=>{
+    if(NET.role==='guest'){
+      netSend({t:'hello', name: NET.guestName});
+    }
+  });
+  c.on('data', onNetData);
+  c.on('close', ()=>{
+    if(NET.conn===c){
+      NET.conn = null;
+      setNetStatus(false, 'Rakibin bağlantısı koptu');
+      if(G && !G.over) setMsg(NET.role==='host'
+        ? 'Rakibin bağlantısı koptu. Aynı linke tekrar tıklarsa oyun kaldığı yerden devam eder.'
+        : 'Bağlantı koptu. Sayfayı yenileyip tekrar katılabilirsin.', true);
+    }
+  });
+  c.on('error', ()=>{});
+}
+
+function onNetData(msg){
+  if(!msg || typeof msg!=='object') return;
+  if(NET.role==='host'){
+    if(msg.t==='hello'){
+      NET.guestName = String(msg.name||'Rakip').slice(0,14) || 'Rakip';
+      if(!G || G.mode!=='online' || G.over){
+        startOnlineGameAsHost();
+      } else {
+        // rejoin: oyunu kaldığı yerden sürdür
+        G.players.black.name = NET.guestName;
+        setBadgeNames();
+        netSend({t:'start', names:{white:G.players.white.name, black:G.players.black.name}, s:snapshot()});
+        setNetStatus(true);
+        setMsg(NET.guestName + ' tekrar bağlandı.', true);
+      }
+    } else if(msg.t==='state'){
+      applyRemote(msg.s);
+    } else if(msg.t==='rematch'){
+      if(G && G.over) startOnlineGameAsHost();
+    }
+  } else {
+    if(msg.t==='start'){
+      el('join-btn').disabled = false;
+      G = newSession('online', null, msg.names.white, msg.names.black, 'black');
+      setBadgeNames();
+      show('game-screen');
+      buildBoardSkeleton();
+      setNetStatus(true);
+      applyRemote(msg.s);
+    } else if(msg.t==='state'){
+      applyRemote(msg.s);
+    } else if(msg.t==='full'){
+      el('join-btn').disabled = false;
+      el('join-note').textContent = 'Bu masa dolu, iki oyuncu zaten oynuyor.';
+    }
+  }
+}
+
+function startOnlineGameAsHost(){
+  G = newSession('online', null, NET.hostName, NET.guestName, 'white');
+  setBadgeNames();
+  show('game-screen');
+  buildBoardSkeleton();
+  NET.connected = true;
+  // önce oyunu kur, sonra açılış zarlarını at
+  netSend({t:'start', names:{white:G.players.white.name, black:G.players.black.name}, s:snapshot()});
+  setNetStatus(true);
+  openingRoll();
+}
+
+function snapshot(){
+  return {
+    state:G.state, turnColor:G.turnColor, dice:G.dice, diceUsed:G.diceUsed,
+    msg:G.msg, over:G.over, winner:G.winner
+  };
+}
+function sync(){
+  if(G && G.mode==='online') netSend({t:'state', s:snapshot()});
+}
+function applyRemote(s){
+  if(!G || !s) return;
+  G.state = clone(s.state);
+  G.turnColor = s.turnColor;
+  G.dice = s.dice.slice();
+  G.diceUsed = s.diceUsed.slice();
+  G.selected = null;
+  G.history = [];
+  G.over = false;
+  setMsg(s.msg||'', true);
+  render();
+  if(s.over && s.winner){ finishGame(s.winner, true); }
+}
+
+/* ---------------- SETUP SCREEN ---------------- */
+let selMode = "online", selDiff = "normal";
+function selectMode(mode){
+  selMode = mode;
+  ["online","two","cpu"].forEach(m=>el("mode-"+m).classList.toggle("selected", m===mode));
+  el("cpu-difficulty").classList.toggle("hidden", mode!=="cpu");
+  el("p2-field").classList.toggle("hidden", mode!=="two");
+  el("p1-label").textContent = mode==="two" ? "1. OYUNCU ADI (Beyaz)" : "ADIN (Beyaz)";
+  el("start-btn").textContent = mode==="online" ? "Oda Kur ve Link Al 🔗" : "Oyunu Başlat 🎬";
+}
+el("mode-online").addEventListener("click", ()=>selectMode("online"));
+el("mode-two").addEventListener("click", ()=>selectMode("two"));
+el("mode-cpu").addEventListener("click", ()=>selectMode("cpu"));
+document.querySelectorAll(".diff-btn").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    document.querySelectorAll(".diff-btn").forEach(x=>x.classList.remove("selected"));
+    b.classList.add("selected"); selDiff = b.dataset.diff;
+  });
+});
+el("show-rules-btn").addEventListener("click", ()=>show("rules-screen"));
+el("rules-back-btn").addEventListener("click", ()=>show("setup-screen"));
+
+el("start-btn").addEventListener("click", ()=>{
+  const raw1 = el("p1-name").value.trim();
+  if(selMode==='online'){
+    hostCreateRoom(raw1 || "Oyuncu 1");
+    return;
+  }
+  const p1 = raw1 || (selMode==='cpu' ? "Sen" : "Oyuncu 1");
+  const p2 = selMode==='cpu' ? "Bilgisayar" : (el("p2-name").value.trim() || "Oyuncu 2");
+  G = newSession(selMode, selDiff, p1, p2);
+  setBadgeNames();
+  show("game-screen");
+  buildBoardSkeleton();
+  openingRoll();
+});
+
+function goMenu(){
+  closeNet();
+  G = null;
+  if(location.search.indexOf('oda=')>=0){
+    try{ history.replaceState(null,'',location.pathname); }catch(e){}
+  }
+  show("setup-screen");
+}
+el("quit-btn").addEventListener("click", ()=>{
+  if(G && G.mode==='online' && !G.over && !confirm('Oyundan çıkarsan bağlantı kapanır. Emin misin?')) return;
+  goMenu();
+});
+el("host-cancel-btn").addEventListener("click", goMenu);
+el("join-cancel-btn").addEventListener("click", goMenu);
+el("menu-btn").addEventListener("click", goMenu);
+el("replay-btn").addEventListener("click", ()=>{
+  if(G && G.mode==='online'){
+    if(!NET.conn || !NET.conn.open){ el('end-sub').textContent = 'Rakip bağlı değil, rövanş başlatılamıyor.'; return; }
+    if(NET.role==='host'){ startOnlineGameAsHost(); }
+    else { netSend({t:'rematch'}); el('replay-btn').textContent = 'Rövanş isteği gönderildi…'; }
+    return;
+  }
+  show("setup-screen");
+});
+
+/* ---- share buttons ---- */
+function currentLink(){ return el('invite-link').textContent; }
+el("copy-link-btn").addEventListener("click", ()=>{
+  const link = currentLink();
+  const done = ()=>{ el("copy-link-btn").textContent = "✅ Kopyalandı"; setTimeout(()=>el("copy-link-btn").textContent="📋 Kopyala", 1800); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(link).then(done, ()=>fallbackCopy(link, done));
+  } else fallbackCopy(link, done);
+});
+function fallbackCopy(text, done){
+  const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta);
+  ta.select(); try{ document.execCommand('copy'); done(); }catch(e){} ta.remove();
+}
+el("wa-link-btn").addEventListener("click", ()=>{
+  const text = 'Tavla oynayalım mı? 🎲 Linke tıkla, hemen başlayalım: ' + currentLink();
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+});
+if(navigator.share){
+  el("share-link-btn").classList.remove("hidden");
+  el("share-link-btn").addEventListener("click", ()=>{
+    navigator.share({title:'Tavla', text:'Tavla oynayalım mı? 🎲', url: currentLink()}).catch(()=>{});
+  });
+}
+
+/* ---- join ---- */
+el("join-btn").addEventListener("click", ()=>{
+  const name = el("join-name").value.trim() || "Oyuncu 2";
+  guestJoin(NET.pendingCode, name);
+});
+el("join-name").addEventListener("keydown", e=>{ if(e.key==='Enter') el("join-btn").click(); });
+
+function setBadgeNames(){
+  const tag = c => (G.mode==='online' && G.myColor===c) ? ' <span class="you-tag">● SEN</span>' : '';
+  el("badge-white-name").textContent = G.players.white.name + " (Beyaz)";
+  el("badge-black-name").textContent = G.players.black.name + " (Siyah)";
+  if(tag('white')) el("badge-white-name").insertAdjacentHTML('beforeend', tag('white'));
+  if(tag('black')) el("badge-black-name").insertAdjacentHTML('beforeend', tag('black'));
+  el("net-status").classList.toggle("hidden", G.mode!=='online');
+}
+
+/* ---------------- OPENING ROLL ---------------- */
+function openingRoll(){
+  let d1 = 1+Math.floor(Math.random()*6);
+  let d2 = 1+Math.floor(Math.random()*6);
+  while(d1===d2){ d1=1+Math.floor(Math.random()*6); d2=1+Math.floor(Math.random()*6); }
+  const starter = d1>d2 ? 'white' : 'black';
+  G.turnColor = starter;
+  G.dice = [d1,d2];
+  G.diceUsed = [];
+  G.history = [];
+  setMsg(`Açılış zarları: Beyaz ${d1} — Siyah ${d2}. Başlayan: ${nameOf(starter)}`);
+  render();
+  sync();
+  postRollCheck();
+}
+
+/* ---------------- TURN / DICE ---------------- */
+function nameOf(color){ return G.players[color].name; }
+function isCpuTurn(){ return G.mode==='cpu' && G.turnColor===G.players.cpuColor; }
+// Bu cihazdaki oyuncu şu an hamle yapabilir mi?
+function canAct(){
+  if(!G || G.over) return false;
+  if(G.mode==='cpu') return !isCpuTurn();
+  if(G.mode==='online') return G.turnColor===G.myColor && NET.connected;
+  return true;
+}
+
+el("roll-btn").addEventListener("click", ()=>{
+  if(!canAct() || G.dice.length>0) return;
+  rollDice();
+});
+
+function rollDice(){
+  let d1 = 1+Math.floor(Math.random()*6);
+  let d2 = 1+Math.floor(Math.random()*6);
+  G.dice = (d1===d2) ? [d1,d1,d1,d1] : [d1,d2];
+  G.diceUsed = [];
+  G.history = [];
+  setMsg(`${nameOf(G.turnColor)} zar attı: ${d1}-${d2}${d1===d2?' (Duble! 4 hamle)':''}`);
+  render();
+  sync();
+  postRollCheck();
+}
+
+function postRollCheck(){
+  const remaining = G.dice.filter((_,i)=>!G.diceUsed.includes(i));
+  if(!hasAnyLegalMove(G.state, G.turnColor, remaining)){
+    setMsg(`${nameOf(G.turnColor)} için hamle yok. Sıra geçiyor...`);
+    sync();
+    // online modda sırayı sadece zarı atan taraf geçirir
+    if(G.mode!=='online' || G.turnColor===G.myColor) setTimeout(endTurn, 1300);
+    return;
+  }
+  if(isCpuTurn()){
+    setTimeout(cpuPlayStep, 700);
+  }
+}
+
+function remainingDice(){
+  return G.dice.map((v,i)=>({v,i})).filter(x=>!G.diceUsed.includes(x.i));
+}
+
+function endTurn(){
+  if(!G || G.over) return;
+  G.turnColor = opp(G.turnColor);
+  G.dice = [];
+  G.diceUsed = [];
+  G.selected = null;
+  G.history = [];
+  setMsg(`Sıra ${nameOf(G.turnColor)}'de. Zar at.`);
+  render();
+  sync();
+  if(isCpuTurn()){
+    setTimeout(rollDice, 700);
+  }
+}
+
+/* ---------------- MOVE EXECUTION ---------------- */
+function tryExecuteMove(from, to, dieIndex){
+  G.history.push({state:clone(G.state), dice:G.dice.slice(), diceUsed:G.diceUsed.slice()});
+  const die = G.dice[dieIndex];
+  const info = applyMove(G.state, G.turnColor, {from, to, die});
+  G.diceUsed.push(dieIndex);
+  G.selected = null;
+
+  if(info.hit){ setMsg(`${nameOf(G.turnColor)} bir pul kırdı! 💥`); }
+
+  if(checkWin(G.state, G.turnColor)){
+    G.winner = G.turnColor;
+    G.over = true;
+    render();
+    sync();
+    return finishGame(G.turnColor);
+  }
+
+  render();
+  sync();
+
+  const remaining = remainingDice().map(x=>x.v);
+  if(remaining.length===0){
+    setTimeout(endTurn, 600);
+  } else if(!hasAnyLegalMove(G.state, G.turnColor, remaining)){
+    setMsg(`Kalan zar(lar) için hamle yok. Sıra geçiyor...`);
+    sync();
+    setTimeout(endTurn, 1100);
+  } else if(isCpuTurn()){
+    setTimeout(cpuPlayStep, 650);
+  }
+}
+
+el("undo-btn").addEventListener("click", ()=>{
+  if(!canAct() || G.history.length===0) return;
+  const snap = G.history.pop();
+  G.state = snap.state; G.dice = snap.dice; G.diceUsed = snap.diceUsed;
+  G.selected = null;
+  setMsg("Son hamle geri alındı.");
+  render();
+  sync();
+});
+
+/* ---------------- SELECTION / CLICK HANDLING ---------------- */
+function onPointClick(point){
+  if(!G || G.over) return;
+  if(!canAct()){
+    if(G.mode==='online') setMsg(NET.connected ? `Sıra ${nameOf(G.turnColor)}'de, bekle.` : 'Rakip bağlı değil.', true);
+    return;
+  }
+  if(G.dice.length===0){ setMsg("Önce zar at.", true); return; }
+
+  const color = G.turnColor;
+  const barCount = G.state.bar[color];
+
+  if(G.selected !== null){
+    const opts = legalOptionsFrom(G.selected);
+    const found = opts.find(o=>o.to===point);
+    if(found){ tryExecuteMove(G.selected, point, found.dieIndex); return; }
+  }
+
+  if(barCount>0){
+    setMsg("Önce barda bekleyen (kırık) pulunu sokmalısın.", true);
+    return;
+  }
+  const p = G.state.points[point];
+  if(p.color !== color || p.count<=0){ setMsg("Kendi pulunu seç.", true); return; }
+
+  const opts = legalOptionsFrom(point);
+  if(opts.length===0){ setMsg("Bu pul için şu an geçerli bir hamle yok.", true); G.selected=null; render(); return; }
+  G.selected = point;
+  render();
+}
+
+function onBarClick(color){
+  if(!G || G.over) return;
+  if(!canAct()) return;
+  if(color !== G.turnColor) return;
+  if(G.dice.length===0){ setMsg("Önce zar at.", true); return; }
+  if(G.state.bar[color]<=0) return;
+  const opts = legalOptionsFrom('bar');
+  if(opts.length===0){ setMsg("Kırık pulun için şu an uygun bir zar yok.", true); return; }
+  G.selected = 'bar';
+  render();
+}
+
+function onOffClick(){
+  if(!G || G.over || !canAct() || G.selected===null) return;
+  const found = legalOptionsFrom(G.selected).find(o=>o.to==='off');
+  if(found) tryExecuteMove(G.selected, 'off', found.dieIndex);
+}
+
+// returns [{to, dieIndex, isHit, isBearOff}]
+function legalOptionsFrom(source){
+  const color = G.turnColor;
+  const results = [];
+  const seen = new Set();
+  remainingDice().forEach(({v,i})=>{
+    const moves = legalMovesForDie(G.state, color, v);
+    moves.forEach(m=>{
+      const fromMatches = (source==='bar') ? (m.from==='bar') : (m.from===source);
+      if(fromMatches){
+        const key = m.to+"_"+v;
+        if(!seen.has(key)){
+          seen.add(key);
+          results.push({to:m.to, dieIndex:i, isHit:m.isHit, isBearOff:m.isBearOff});
+        }
+      }
+    });
+  });
+  return results;
+}
+
+/* ---------------- CPU AI ---------------- */
+function cpuPlayStep(){
+  if(!G || G.over || !isCpuTurn()) return;
+  const color = G.turnColor;
+  const remaining = remainingDice();
+  if(remaining.length===0){ return; }
+  if(!hasAnyLegalMove(G.state, color, remaining.map(x=>x.v))){ return; }
+  const best = chooseCpuMove(color, remaining);
+  if(!best){ return; }
+  tryExecuteMove(best.from, best.to, best.dieIndex);
+}
+
+function chooseCpuMove(color, remaining){
+  const candidates = [];
+  const barCount = G.state.bar[color];
+  remaining.forEach(({v,i})=>{
+    const moves = legalMovesForDie(G.state, color, v);
+    moves.forEach(m=>{
+      if(barCount>0 && m.from!=='bar') return;
+      candidates.push({from:m.from, to:m.to, die:v, dieIndex:i, isHit:m.isHit, isBearOff:m.isBearOff});
+    });
+  });
+  if(candidates.length===0) return null;
+
+  const scored = candidates.map(c=>({c, score: scoreMove(color, c)}));
+  scored.sort((a,b)=>b.score-a.score);
+
+  let idx = 0;
+  if(G.diff==='easy'){
+    idx = Math.random()<0.55 ? Math.floor(Math.random()*scored.length) : 0;
+  } else if(G.diff==='normal'){
+    idx = Math.random()<0.25 ? Math.floor(Math.random()*Math.min(3,scored.length)) : 0;
+  }
+  return scored[idx].c;
+}
+
+function scoreMove(color, move){
+  let score = 0;
+  if(move.isHit) score += 14;
+  if(move.isBearOff) score += 18;
+  if(move.to !== 'off'){
+    const destBefore = G.state.points[move.to];
+    const willBeCount = (destBefore.color===color ? destBefore.count+1 : 1);
+    if(willBeCount>=2) score += 6;
+    if(willBeCount===1){ score -= exposurePenalty(color, move.to); }
+  }
+  if(move.from !== 'bar'){
+    const srcBefore = G.state.points[move.from];
+    if(srcBefore.count===2){ score -= exposurePenalty(color, move.from) * 0.6; }
+  }
+  score += move.die * 0.4;
+  return score;
+}
+
+function exposurePenalty(color, point){
+  const enemy = opp(color);
+  let threats = 0;
+  for(let i=1;i<=24;i++){
+    const p = G.state.points[i];
+    if(p.color!==enemy || p.count<=0) continue;
+    const d = dirOf(enemy)===1 ? (point-i) : (i-point);
+    if(d>=1 && d<=6) threats++;
+  }
+  if(G.state.bar[enemy]>0) threats += 2;
+  return threats * 3.2;
+}
+
+/* =====================================================================
+   RENDERING
+   ===================================================================== */
+const TOP_ORDER    = [13,14,15,16,17,18,'bar',19,20,21,22,23,24];
+const BOTTOM_ORDER = [12,11,10,9,8,7,'bar',6,5,4,3,2,1];
+
+function buildBoardSkeleton(){
+  const board = el("board");
+  board.innerHTML = "";
+
+  TOP_ORDER.forEach((pt, idx)=>{
+    if(pt==='bar'){
+      const barCol = document.createElement('div');
+      barCol.className='bar-col'; barCol.id='bar-col';
+      barCol.innerHTML = `
+        <div class="bar-half" id="bar-black"></div>
+        <div class="bar-half" id="bar-white"></div>`;
+      board.appendChild(barCol);
+      return;
+    }
+    const div = document.createElement('div');
+    div.className = 'point top ' + ((idx%2===0) ? 'light':'dark');
+    div.dataset.point = pt;
+    div.id = 'point-'+pt;
+    div.innerHTML = `<div class="tri"></div><div class="point-label">${pt}</div><div class="checker-stack" id="stack-${pt}"></div>`;
+    div.addEventListener('click', ()=>onPointClick(pt));
+    board.appendChild(div);
+  });
+
+  BOTTOM_ORDER.forEach((pt, idx)=>{
+    if(pt==='bar') return;
+    const div = document.createElement('div');
+    div.className = 'point bottom ' + ((idx%2===0) ? 'light':'dark');
+    div.dataset.point = pt;
+    div.id = 'point-'+pt;
+    div.innerHTML = `<div class="tri"></div><div class="point-label">${pt}</div><div class="checker-stack" id="stack-${pt}"></div>`;
+    div.addEventListener('click', ()=>onPointClick(pt));
+    board.appendChild(div);
+  });
+
+  const offCol = document.createElement('div');
+  offCol.className = 'off-col';
+  offCol.innerHTML = `
+    <div class="off-half black-off" id="off-half-black"><div class="off-count" id="off-black">0</div><div class="off-mini black"></div></div>
+    <div class="off-half white-off" id="off-half-white"><div class="off-count" id="off-white">0</div><div class="off-mini white"></div></div>`;
+  board.appendChild(offCol);
+
+  el('bar-black').addEventListener('click', ()=>onBarClick('black'));
+  el('bar-white').addEventListener('click', ()=>onBarClick('white'));
+  el('off-half-black').addEventListener('click', onOffClick);
+  el('off-half-white').addEventListener('click', onOffClick);
+}
+
+// local=true: sadece bu ekranda göster (rakibe gönderilmez)
+function setMsg(text, local){
+  if(G && !local) G.msg = text;
+  el('msg-bar').textContent = text;
+}
+
+function render(){
+  if(!G) return;
+  const act = canAct();
+
+  el('badge-white').classList.toggle('active', G.turnColor==='white');
+  el('badge-black').classList.toggle('active', G.turnColor==='black');
+
+  const diceArea = el('dice-area');
+  diceArea.innerHTML = '';
+  G.dice.forEach((v,i)=>{
+    const d = document.createElement('div');
+    d.className = 'die' + (G.diceUsed.includes(i) ? ' used' : '');
+    d.textContent = v;
+    diceArea.appendChild(d);
+  });
+  const rollOff = G.dice.length>0 || !act;
+  el('roll-btn').disabled = rollOff;
+  el('roll-btn').style.opacity = rollOff ? 0.4 : 1;
+  el('roll-btn').textContent = (G.mode==='online' && G.turnColor!==G.myColor) ? 'Rakibin sırası ⏳' : 'Zar At 🎲';
+  el('undo-btn').disabled = G.history.length===0 || !act;
+
+  let legalTargets = new Set();
+  if(G.selected!==null && act){
+    legalOptionsFrom(G.selected).forEach(o=>legalTargets.add(o.to));
+  }
+
+  for(let pt=1; pt<=24; pt++){
+    const stack = el('stack-'+pt);
+    if(!stack) continue;
+    stack.innerHTML = '';
+    const p = G.state.points[pt];
+    el('point-'+pt).classList.toggle('legal', legalTargets.has(pt));
+    if(p.color){
+      const showCount = Math.min(p.count, 5);
+      for(let k=0;k<showCount;k++){
+        const c = document.createElement('div');
+        c.className = 'checker ' + p.color + (p.count===1 ? ' blot':'');
+        if(k===showCount-1 && p.count>5){ c.textContent = '+'+(p.count-4); }
+        if(G.selected===pt) c.classList.add('selectable');
+        stack.appendChild(c);
+      }
+    }
+  }
+
+  ['black','white'].forEach(col=>{
+    const half = el('bar-'+col);
+    half.innerHTML='';
+    for(let k=0;k<G.state.bar[col];k++){
+      const c=document.createElement('div');
+      c.className='checker '+col+(G.selected==='bar'&&G.turnColor===col?' selectable':'');
+      half.appendChild(c);
+    }
+    if(G.state.bar[col]>0){ const t=document.createElement('div'); t.className='bar-count'; t.textContent=G.state.bar[col]+' pul'; half.appendChild(t); }
+  });
+
+  el('off-black').textContent = G.state.off.black;
+  el('off-white').textContent = G.state.off.white;
+  const offLegal = legalTargets.has('off');
+  ['black','white'].forEach(col=>{
+    const h = el('off-half-'+col);
+    const on = offLegal && G.turnColor===col;
+    h.style.outline = on ? '2px solid var(--success)' : '';
+    h.style.cursor = on ? 'pointer' : '';
+  });
+}
+
+/* ---------------- END GAME ---------------- */
+function finishGame(winnerColor){
+  G.over = true;
+  G.winner = winnerColor;
+  const wt = winType(G.state, winnerColor);
+  show('end-screen');
+
+  const labelMap = {normal:'Normal Galibiyet', gammon:'Mars! 🔥', backgammon:'Katmerli Mars! 🎇'};
+  const emojiMap = {normal:'🏆', gammon:'🔥', backgammon:'🎇'};
+
+  let title = `${nameOf(winnerColor)} kazandı!`;
+  if(G.mode==='online') title = (winnerColor===G.myColor ? 'Kazandın! ' : 'Kaybettin — ') + nameOf(winnerColor) + ' kazandı';
+  el('end-emoji').textContent = (G.mode==='online' && winnerColor!==G.myColor) ? '😔' : emojiMap[wt.type];
+  el('end-title').textContent = title;
+  el('end-sub').textContent = `${labelMap[wt.type]} — ${wt.points} puan.`;
+  el('replay-btn').textContent = G.mode==='online' ? 'Rövanş 🔁' : 'Tekrar Oyna 🔁';
+}
+
+/* ---------------- BOOT ---------------- */
+(function boot(){
+  const code = new URLSearchParams(location.search).get('oda');
+  if(code && /^[a-z0-9]{4,16}$/.test(code)){
+    NET.pendingCode = code;
+    show('join-screen');
+    setTimeout(()=>el('join-name').focus(), 50);
+  } else {
+    selectMode('online');
+    show('setup-screen');
+  }
+})();
+
+// test kancası
+window.__tavla = { get G(){ return G; }, NET, applyMove, legalMovesForDie, canAct, onPointClick, onOffClick };
+
+})();
+</script>
+</body>
+</html>
