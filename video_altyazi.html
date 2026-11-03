@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Otomatik Türkçe Alt Yazı</title>
+<style>
+  :root{
+    --bg:#f6f7fb; --card:#ffffff; --text:#1c1f2a; --muted:#6b7183; --line:#e3e6ee;
+    --accent:#e11d48; --accent-2:#be123c; --ok:#16a34a; --warn:#d97706; --soft:#fdf2f4;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0f1117; --card:#181b24; --text:#e8eaf0; --muted:#9aa0b2; --line:#2a2f3d; --soft:#2a1820; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+  header{padding:28px 16px 8px;max-width:1100px;margin:0 auto}
+  header h1{margin:0;font-size:26px;letter-spacing:-.02em}
+  header p{margin:6px 0 0;color:var(--muted)}
+  main{max-width:1100px;margin:0 auto;padding:12px 16px 60px;display:grid;gap:16px;grid-template-columns:1.3fr 1fr}
+  @media (max-width:860px){ main{grid-template-columns:1fr} }
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .card h2{margin:0 0 12px;font-size:16px}
+  .drop{border:2px dashed var(--line);border-radius:12px;padding:28px 16px;text-align:center;cursor:pointer;transition:.15s}
+  .drop:hover,.drop.over{border-color:var(--accent);background:var(--soft)}
+  .drop strong{display:block;font-size:16px;margin-bottom:4px}
+  .drop span{color:var(--muted);font-size:13px}
+  .player{position:relative;margin-top:12px;background:#000;border-radius:10px;overflow:hidden;display:none}
+  .player video{display:block;width:100%;max-height:60vh}
+  .overlay{position:absolute;left:0;right:0;bottom:12%;text-align:center;pointer-events:none;padding:0 6%}
+  .overlay span{display:inline;color:#fff;font-weight:700;line-height:1.3;white-space:pre-wrap;
+    text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000,0 0 6px #000}
+  .overlay.box span{background:rgba(0,0,0,.72);text-shadow:none;padding:.1em .35em;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  select,input[type=range]{width:100%}
+  select{padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  button{font:inherit;border:0;border-radius:10px;padding:10px 16px;cursor:pointer;background:var(--line);color:var(--text);font-weight:600}
+  button.primary{background:var(--accent);color:#fff}
+  button.primary:hover{background:var(--accent-2)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .full{width:100%;margin-top:14px}
+  .status{margin-top:12px;font-size:14px}
+  .bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:6px}
+  .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+  .dl{font-size:12px;color:var(--muted);margin-top:6px;max-height:90px;overflow:auto}
+  .pill{display:inline-block;padding:2px 10px;border-radius:99px;background:var(--soft);color:var(--accent);font-weight:600;font-size:13px}
+  .segs{max-height:520px;overflow:auto;display:grid;gap:8px;margin-top:8px}
+  .seg{border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  .seg.active{border-color:var(--accent)}
+  .seg .t{font:12px ui-monospace,Menlo,Consolas,monospace;color:var(--accent);cursor:pointer;border:0;background:none;padding:0}
+  .seg .o{font-size:12px;color:var(--muted);margin:2px 0 4px}
+  .seg textarea{width:100%;resize:vertical;min-height:38px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit;background:var(--bg);color:var(--text)}
+  .note{font-size:12px;color:var(--muted);margin-top:8px}
+  .err{color:var(--accent)}
+  a.result{display:inline-block;margin-top:10px;font-weight:700;color:var(--ok)}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎬 Otomatik Türkçe Alt Yazı</h1>
+  <p>Videoyu yükleyin; konuşmanın dili otomatik algılanır, Türkçeye çevrilir ve alt yazılı video olarak indirilebilir. Her şey tarayıcınızda çalışır, video hiçbir sunucuya gönderilmez.</p>
+</header>
+
+<main>
+  <section class="card">
+    <h2>1. Video</h2>
+    <div class="drop" id="drop">
+      <strong>Videoyu buraya sürükleyin ya da tıklayın</strong>
+      <span>MP4, WebM, MOV…</span>
+      <input type="file" id="file" accept="video/*,audio/*" hidden>
+    </div>
+    <div class="player" id="player">
+      <video id="video" controls playsinline></video>
+      <div class="overlay" id="overlay"><span id="overlayText"></span></div>
+    </div>
+    <div class="note" id="fileInfo"></div>
+  </section>
+
+  <section class="card">
+    <h2>2. Ayarlar</h2>
+    <label for="model">Tanıma kalitesi</label>
+    <select id="model">
+      <option value="onnx-community/whisper-tiny">Hızlı (~40 MB)</option>
+      <option value="onnx-community/whisper-base" selected>Dengeli (~80 MB)</option>
+      <option value="onnx-community/whisper-small">Yüksek (~250 MB)</option>
+      <option value="onnx-community/whisper-large-v3-turbo">En yüksek (~800 MB, WebGPU önerilir)</option>
+    </select>
+    <label for="lang">Videodaki konuşma dili</label>
+    <select id="lang"><option value="auto">Otomatik algıla</option></select>
+
+    <button class="primary full" id="start" disabled>Alt yazıyı oluştur</button>
+
+    <div class="status" id="status"></div>
+    <div class="bar hidden" id="barWrap"><i id="bar"></i></div>
+    <div class="dl" id="dl"></div>
+    <div class="note">İlk kullanımda yapay zekâ modelleri indirilir (çeviri modeli ~600 MB). Sonraki kullanımlarda tarayıcı önbelleğinden açılır.</div>
+  </section>
+
+  <section class="card hidden" id="editCard" style="grid-column:1/-1">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0">3. Alt yazılar <span class="pill" id="langPill"></span></h2>
+      <div class="row">
+        <button id="srt">.SRT indir</button>
+        <button id="vtt">.VTT indir</button>
+      </div>
+    </div>
+    <div class="row" style="margin-top:6px;gap:24px">
+      <div style="flex:1;min-width:200px">
+        <label for="size">Yazı boyutu</label>
+        <input type="range" id="size" min="3" max="9" step="0.5" value="5.5">
+      </div>
+      <div style="flex:1;min-width:200px">
+        <label for="style">Görünüm</label>
+        <select id="style">
+          <option value="outline">Kenarlıklı beyaz yazı</option>
+          <option value="box">Siyah kutu üzerinde</option>
+        </select>
+      </div>
+    </div>
+    <div class="segs" id="segs"></div>
+    <div class="note">Metinleri düzenleyebilirsiniz; değişiklikler önizlemeye ve indirilen videoya yansır. Süreye tıklayınca video o ana gider.</div>
+
+    <button class="primary full" id="export">🎞️ Alt yazılı videoyu oluştur ve indir</button>
+    <button class="full hidden" id="cancel">İptal</button>
+    <div class="status" id="exStatus"></div>
+    <div class="bar hidden" id="exBarWrap"><i id="exBar"></i></div>
+    <div id="result"></div>
+    <div class="note">Video, gerçek süresinde oynatılarak kaydedilir (10 dakikalık video ≈ 10 dakika). Bu sırada sekmeyi açık ve önde tutun.</div>
+  </section>
+</main>
+
+<!-- ===================== WEB WORKER (yapay zekâ işlemleri) ===================== -->
+<script type="text/worker" id="worker-src">
+import { pipeline, env, Tensor } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3';
+env.allowLocalModels = false;
+
+const SR = 16000;
+const NLLB = {en:'eng_Latn',zh:'zho_Hans',de:'deu_Latn',es:'spa_Latn',ru:'rus_Cyrl',ko:'kor_Hang',fr:'fra_Latn',ja:'jpn_Jpan',pt:'por_Latn',tr:'tur_Latn',pl:'pol_Latn',ca:'cat_Latn',nl:'nld_Latn',ar:'arb_Arab',sv:'swe_Latn',it:'ita_Latn',id:'ind_Latn',hi:'hin_Deva',fi:'fin_Latn',vi:'vie_Latn',he:'heb_Hebr',uk:'ukr_Cyrl',el:'ell_Grek',ms:'zsm_Latn',cs:'ces_Latn',ro:'ron_Latn',da:'dan_Latn',hu:'hun_Latn',ta:'tam_Taml',no:'nob_Latn',th:'tha_Thai',ur:'urd_Arab',hr:'hrv_Latn',bg:'bul_Cyrl',lt:'lit_Latn',mi:'mri_Latn',ml:'mal_Mlym',cy:'cym_Latn',sk:'slk_Latn',te:'tel_Telu',fa:'pes_Arab',lv:'lvs_Latn',bn:'ben_Beng',sr:'srp_Cyrl',az:'azj_Latn',sl:'slv_Latn',kn:'kan_Knda',et:'est_Latn',mk:'mkd_Cyrl',eu:'eus_Latn',is:'isl_Latn',hy:'hye_Armn',ne:'npi_Deva',mn:'khk_Cyrl',bs:'bos_Latn',kk:'kaz_Cyrl',sq:'als_Latn',sw:'swh_Latn',gl:'glg_Latn',mr:'mar_Deva',pa:'pan_Guru',si:'sin_Sinh',km:'khm_Khmr',sn:'sna_Latn',yo:'yor_Latn',so:'som_Latn',af:'afr_Latn',oc:'oci_Latn',ka:'kat_Geor',be:'bel_Cyrl',tg:'tgk_Cyrl',sd:'snd_Arab',gu:'guj_Gujr',am:'amh_Ethi',yi:'ydd_Hebr',lo:'lao_Laoo',uz:'uzn_Latn',fo:'fao_Latn',ht:'hat_Latn',ps:'pbt_Arab',tk:'tuk_Latn',nn:'nno_Latn',mt:'mlt_Latn',sa:'san_Deva',lb:'ltz_Latn',my:'mya_Mymr',bo:'bod_Tibt',tl:'tgl_Latn',as:'asm_Beng',tt:'tat_Cyrl',ln:'lin_Latn',ha:'hau_Latn',ba:'bak_Cyrl',jw:'jav_Latn',su:'sun_Latn',yue:'yue_Hant',mg:'plt_Latn'};
+const WHISPER_LANGS = ['en','zh','de','es','ru','ko','fr','ja','pt','tr','pl','ca','nl','ar','sv','it','id','hi','fi','vi','he','uk','el','ms','cs','ro','da','hu','ta','no','th','ur','hr','bg','lt','la','mi','ml','cy','sk','te','fa','lv','bn','sr','az','sl','kn','et','mk','br','eu','is','hy','ne','mn','bs','kk','sq','sw','gl','mr','pa','si','km','sn','yo','so','af','oc','ka','be','tg','sd','gu','am','yi','lo','uz','fo','ht','ps','tk','nn','mt','sa','lb','my','bo','tl','mg','as','tt','haw','ln','ha','ba','jw','su','yue'];
+
+const post = (type, data = {}) => self.postMessage({ type, ...data });
+const progressCb = (label) => (p) => {
+  if (p.status === 'progress' && p.file) post('download', { label, file: p.file, progress: p.progress || 0 });
+};
+
+async function hasWebGPU() {
+  try { return !!(self.navigator.gpu && await self.navigator.gpu.requestAdapter()); } catch { return false; }
+}
+
+let asr = null, asrKey = null, mt = null;
+
+async function getASR(model) {
+  if (asr && asrKey === model) return asr;
+  const opts = { progress_callback: progressCb('Konuşma tanıma modeli') };
+  if (await hasWebGPU()) {
+    try {
+      asr = await pipeline('automatic-speech-recognition', model, { ...opts, device: 'webgpu', dtype: { encoder_model: 'fp32', decoder_model_merged: 'q4' } });
+      asrKey = model; post('device', { name: 'WebGPU (ekran kartı)' }); return asr;
+    } catch (e) { console.warn('WebGPU başarısız, WASM ile devam:', e); }
+  }
+  asr = await pipeline('automatic-speech-recognition', model, { ...opts, device: 'wasm', dtype: 'q8' });
+  asrKey = model; post('device', { name: 'WASM (işlemci)' });
+  return asr;
+}
+
+async function getMT() {
+  if (mt) return mt;
+  mt = await pipeline('translation', 'Xenova/nllb-200-distilled-600M', { dtype: 'q8', progress_callback: progressCb('Çeviri modeli') });
+  return mt;
+}
+
+function rms(a, s = 0, e = a.length) {
+  let sum = 0; for (let i = s; i < e; i++) sum += a[i] * a[i];
+  return Math.sqrt(sum / Math.max(1, e - s));
+}
+
+// Sesi en fazla 28 sn'lik parçalara, sessiz anlardan bölerek ayırır
+function splitAudio(a) {
+  const MAX = 28 * SR, LOOK = 8 * SR, F = SR / 10 | 0, out = [];
+  let s = 0;
+  while (s < a.length) {
+    if (a.length - s <= MAX) { out.push([s, a.length]); break; }
+    let best = s + MAX, bestE = Infinity;
+    for (let f = s + MAX - LOOK; f + F <= s + MAX; f += F) {
+      let e = 0; for (let k = f; k < f + F; k++) e += a[k] * a[k];
+      if (e < bestE) { bestE = e; best = f + (F >> 1); }
+    }
+    out.push([s, best]); s = best;
+  }
+  return out;
+}
+
+// Whisper'ın dil token'larının olasılığına bakarak konuşma dilini algılar
+async function detectLanguage(p, audio) {
+  const F = SR / 2 | 0;
+  let start = 0;
+  for (let i = 0; i + F <= audio.length; i += F) { if (rms(audio, i, i + F) > 0.02) { start = Math.max(0, i - F); break; } }
+  const sample = audio.slice(start, start + 30 * SR);
+  const ids = p.tokenizer.model.tokens_to_ids;
+  const sot = ids.get('<|startoftranscript|>');
+  const inputs = await p.processor(sample);
+  const out = await p.model({
+    input_features: inputs.input_features,
+    decoder_input_ids: new Tensor('int64', BigInt64Array.from([BigInt(sot)]), [1, 1]),
+  });
+  const logits = out.logits.data;
+  let best = 'en', bestV = -Infinity;
+  for (const code of WHISPER_LANGS) {
+    const id = ids.get(`<|${code}|>`);
+    if (id === undefined) continue;
+    const v = Number(logits[id]);
+    if (v > bestV) { bestV = v; best = code; }
+  }
+  return best;
+}
+
+self.onmessage = async (e) => {
+  const { audio, model, lang } = e.data;
+  try {
+    post('status', { text: 'Konuşma tanıma modeli yükleniyor…' });
+    const p = await getASR(model);
+
+    let src = lang;
+    if (src === 'auto') {
+      post('status', { text: 'Konuşma dili algılanıyor…' });
+      src = await detectLanguage(p, audio);
+    }
+    post('lang', { code: src });
+
+    const nllb = NLLB[src];
+    const viaEnglish = src !== 'tr' && !nllb; // NLLB'de olmayan dil: önce İngilizceye çevir
+    const task = viaEnglish ? 'translate' : 'transcribe';
+
+    const pieces = splitAudio(audio);
+    const segs = [];
+    for (let i = 0; i < pieces.length; i++) {
+      post('status', { text: `Konuşma yazıya dökülüyor… (${i + 1}/${pieces.length})` });
+      const [s, en] = pieces[i];
+      if (rms(audio, s, en) > 0.004) {
+        const r = await p(audio.slice(s, en), { language: src, task, return_timestamps: true });
+        const off = s / SR, len = (en - s) / SR;
+        for (const c of (r.chunks || [{ text: r.text, timestamp: [0, len] }])) {
+          const text = (c.text || '').trim();
+          if (!text) continue;
+          let a = off + (c.timestamp?.[0] ?? 0);
+          let b = off + (c.timestamp?.[1] ?? len);
+          if (b <= a) b = Math.min(a + 2, off + len);
+          segs.push({ start: a, end: b, orig: text, tr: '' });
+          post('segment', { seg: segs[segs.length - 1] });
+        }
+      }
+      post('progress', { value: (i + 1) / pieces.length * (src === 'tr' ? 1 : 0.5) });
+    }
+
+    if (src === 'tr') {
+      segs.forEach(s => s.tr = s.orig);
+    } else if (segs.length) {
+      post('status', { text: 'Çeviri modeli yükleniyor…' });
+      const translator = await getMT();
+      const srcCode = viaEnglish ? 'eng_Latn' : nllb;
+      for (let i = 0; i < segs.length; i++) {
+        post('status', { text: `Türkçeye çevriliyor… (${i + 1}/${segs.length})` });
+        const out = await translator(segs[i].orig, { src_lang: srcCode, tgt_lang: 'tur_Latn' });
+        segs[i].tr = (out[0]?.translation_text || '').trim();
+        post('progress', { value: 0.5 + (i + 1) / segs.length * 0.5 });
+      }
+    }
+    post('done', { segments: segs, lang: src });
+  } catch (err) {
+    console.error(err);
+    post('error', { text: err?.message || String(err) });
+  }
+};
+</script>
+
+<!-- ===================== ARAYÜZ ===================== -->
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const els = {
+  drop: $('drop'), file: $('file'), player: $('player'), video: $('video'), overlay: $('overlay'), overlayText: $('overlayText'),
+  fileInfo: $('fileInfo'), model: $('model'), lang: $('lang'), start: $('start'), status: $('status'), barWrap: $('barWrap'),
+  bar: $('bar'), dl: $('dl'), editCard: $('editCard'), langPill: $('langPill'), segs: $('segs'), size: $('size'), style: $('style'),
+  srt: $('srt'), vtt: $('vtt'), exportBtn: $('export'), cancel: $('cancel'), exStatus: $('exStatus'), exBarWrap: $('exBarWrap'),
+  exBar: $('exBar'), result: $('result'),
+};
+
+const WHISPER_LANGS = ['en','zh','de','es','ru','ko','fr','ja','pt','tr','pl','ca','nl','ar','sv','it','id','hi','fi','vi','he','uk','el','ms','cs','ro','da','hu','ta','no','th','ur','hr','bg','lt','la','mi','ml','cy','sk','te','fa','lv','bn','sr','az','sl','kn','et','mk','br','eu','is','hy','ne','mn','bs','kk','sq','sw','gl','mr','pa','si','km','sn','yo','so','af','oc','ka','be','tg','sd','gu','am','yi','lo','uz','fo','ht','ps','tk','nn','mt','sa','lb','my','bo','tl','mg','as','tt','haw','ln','ha','ba','jw','su','yue'];
+const dn = (() => { try { return new Intl.DisplayNames(['tr'], { type: 'language' }); } catch { return null; } })();
+const langName = (c) => { try { const n = dn?.of(c === 'jw' ? 'jv' : c); return n ? n[0].toLocaleUpperCase('tr') + n.slice(1) : c; } catch { return c; } };
+WHISPER_LANGS.map(c => [c, langName(c)]).sort((a, b) => a[1].localeCompare(b[1], 'tr'))
+  .forEach(([c, n]) => els.lang.add(new Option(n, c)));
+
+let file = null, videoURL = null, segments = [], worker = null, busy = false, dlState = {};
+
+// ---------- Dosya seçimi ----------
+els.drop.onclick = () => els.file.click();
+els.file.onchange = () => els.file.files[0] && setFile(els.file.files[0]);
+['dragenter', 'dragover'].forEach(ev => els.drop.addEventListener(ev, e => { e.preventDefault(); els.drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => els.drop.addEventListener(ev, e => { e.preventDefault(); els.drop.classList.remove('over'); }));
+els.drop.addEventListener('drop', e => e.dataTransfer.files[0] && setFile(e.dataTransfer.files[0]));
+
+function setFile(f) {
+  file = f;
+  if (videoURL) URL.revokeObjectURL(videoURL);
+  videoURL = URL.createObjectURL(f);
+  els.video.src = videoURL;
+  els.player.style.display = 'block';
+  els.fileInfo.textContent = `${f.name} · ${(f.size / 1048576).toFixed(1)} MB`;
+  els.start.disabled = busy;
+  segments = []; renderSegs(); els.editCard.classList.add('hidden'); els.result.innerHTML = '';
+}
+
+// ---------- Ses çıkarma (16 kHz mono) ----------
+async function extractAudio(f) {
+  const buf = await f.arrayBuffer();
+  const ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+  try {
+    const ab = await ctx.decodeAudioData(buf);
+    const n = ab.numberOfChannels, out = new Float32Array(ab.length);
+    for (let c = 0; c < n; c++) { const d = ab.getChannelData(c); for (let i = 0; i < d.length; i++) out[i] += d[i] / n; }
+    return out;
+  } finally { ctx.close(); }
+}
+
+function setStatus(t, cls = '') { els.status.className = 'status ' + cls; els.status.textContent = t; }
+function setBar(v) { els.barWrap.classList.remove('hidden'); els.bar.style.width = Math.round(v * 100) + '%'; }
+
+// ---------- Alt yazı oluşturma ----------
+els.start.onclick = async () => {
+  if (!file || busy) return;
+  busy = true; els.start.disabled = true; dlState = {}; els.dl.textContent = '';
+  segments = []; renderSegs(); els.editCard.classList.add('hidden'); els.result.innerHTML = '';
+  try {
+    setStatus('Videodan ses çıkarılıyor…'); setBar(0);
+    const audio = await extractAudio(file);
+    if (!worker) {
+      const src = $('worker-src').textContent;
+      worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), { type: 'module' });
+      worker.onmessage = onWorker;
+      worker.onerror = (e) => { setStatus('Hata: ' + (e.message || 'işçi başlatılamadı'), 'err'); done(); };
+    }
+    worker.postMessage({ audio, model: els.model.value, lang: els.lang.value }, [audio.buffer]);
+  } catch (err) {
+    console.error(err);
+    setStatus('Ses okunamadı. Videoda ses olmayabilir ya da biçim desteklenmiyor olabilir. (' + err.message + ')', 'err');
+    done();
+  }
+};
+function done() { busy = false; els.start.disabled = !file; }
+
+function onWorker({ data }) {
+  switch (data.type) {
+    case 'status': setStatus(data.text); break;
+    case 'progress': setBar(data.value); break;
+    case 'device': console.log('Cihaz:', data.name); break;
+    case 'download': {
+      dlState[data.file] = data.progress;
+      const open = Object.entries(dlState).filter(([, p]) => p < 100);
+      els.dl.textContent = open.length ? `${data.label} indiriliyor: ` + open.map(([f, p]) => `${f.split('/').pop()} %${Math.round(p)}`).join(' · ') : '';
+      break;
+    }
+    case 'lang':
+      els.langPill.textContent = 'Algılanan dil: ' + langName(data.code);
+      setStatus('Dil: ' + langName(data.code));
+      break;
+    case 'segment':
+      segments.push({ ...data.seg }); els.editCard.classList.remove('hidden'); renderSegs(); break;
+    case 'done':
+      segments = data.segments; renderSegs(); els.editCard.classList.remove('hidden');
+      els.dl.textContent = ''; setBar(1);
+      setStatus(segments.length ? `Hazır! ${segments.length} alt yazı satırı oluşturuldu.` : 'Videoda konuşma bulunamadı.', segments.length ? '' : 'err');
+      done(); break;
+    case 'error':
+      setStatus('Hata: ' + data.text, 'err'); done(); break;
+  }
+}
+
+// ---------- Alt yazı listesi ----------
+const fmt = (t, sep = ',') => {
+  const ms = Math.max(0, Math.round(t * 1000));
+  const h = String(Math.floor(ms / 3600000)).padStart(2, '0'), m = String(Math.floor(ms / 60000) % 60).padStart(2, '0');
+  const s = String(Math.floor(ms / 1000) % 60).padStart(2, '0'), x = String(ms % 1000).padStart(3, '0');
+  return `${h}:${m}:${s}${sep}${x}`;
+};
+const esc = (s) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function renderSegs() {
+  els.segs.innerHTML = segments.map((s, i) => `
+    <div class="seg" data-i="${i}">
+      <button class="t" data-seek="${s.start}">${fmt(s.start).slice(3, 8)} → ${fmt(s.end).slice(3, 8)}</button>
+      ${s.orig !== s.tr ? `<div class="o">${esc(s.orig)}</div>` : ''}
+      <textarea data-i="${i}" placeholder="çevriliyor…">${esc(s.tr || '')}</textarea>
+    </div>`).join('');
+}
+els.segs.addEventListener('input', e => { if (e.target.dataset.i) segments[+e.target.dataset.i].tr = e.target.value; });
+els.segs.addEventListener('click', e => { if (e.target.dataset.seek) { els.video.currentTime = +e.target.dataset.seek + 0.01; els.video.play(); } });
+
+// Uzun satırları okunabilir parçalara böler
+function cues() {
+  const out = [];
+  for (const s of segments) {
+    const text = (s.tr || '').trim(); if (!text) continue;
+    if (text.length <= 84) { out.push({ start: s.start, end: s.end, text }); continue; }
+    const words = text.split(/\s+/), parts = []; let cur = '';
+    for (const w of words) { if ((cur + ' ' + w).trim().length > 80 && cur) { parts.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); }
+    if (cur) parts.push(cur);
+    const total = parts.reduce((a, p) => a + p.length, 0); let t = s.start;
+    for (const p of parts) { const d = (s.end - s.start) * p.length / total; out.push({ start: t, end: t + d, text: p }); t += d; }
+  }
+  return out;
+}
+const cueAt = (list, t) => list.find(c => t >= c.start && t < c.end)?.text || '';
+
+// ---------- Önizleme ----------
+function applyStyle() {
+  els.overlay.classList.toggle('box', els.style.value === 'box');
+  const h = els.video.getBoundingClientRect().height || 360;
+  els.overlayText.style.fontSize = (h * els.size.value / 100) + 'px';
+}
+els.size.oninput = applyStyle; els.style.onchange = applyStyle; window.addEventListener('resize', applyStyle);
+els.video.addEventListener('loadedmetadata', applyStyle);
+(function loop() {
+  const t = els.video.currentTime, list = cues();
+  els.overlayText.textContent = cueAt(list, t);
+  const idx = segments.findIndex(s => t >= s.start && t < s.end);
+  els.segs.querySelectorAll('.seg.active').forEach(n => { if (+n.dataset.i !== idx) n.classList.remove('active'); });
+  if (idx >= 0) els.segs.querySelector(`.seg[data-i="${idx}"]`)?.classList.add('active');
+  requestAnimationFrame(loop);
+})();
+
+// ---------- SRT / VTT ----------
+const baseName = () => (file?.name || 'video').replace(/\.[^.]+$/, '');
+function download(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+}
+els.srt.onclick = () => {
+  const s = cues().map((c, i) => `${i + 1}\n${fmt(c.start)} --> ${fmt(c.end)}\n${c.text}\n`).join('\n');
+  download(new Blob([s], { type: 'text/plain;charset=utf-8' }), baseName() + '.tr.srt');
+};
+els.vtt.onclick = () => {
+  const s = 'WEBVTT\n\n' + cues().map(c => `${fmt(c.start, '.')} --> ${fmt(c.end, '.')}\n${c.text}\n`).join('\n');
+  download(new Blob([s], { type: 'text/vtt;charset=utf-8' }), baseName() + '.tr.vtt');
+};
+
+// ---------- Alt yazıyı videoya gömme (canvas + MediaRecorder) ----------
+function wrap(ctx, text, maxW) {
+  const lines = [];
+  for (const para of text.split('\n')) {
+    let cur = '';
+    for (const w of para.split(/\s+/)) {
+      const test = cur ? cur + ' ' + w : w;
+      if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; } else cur = test;
+    }
+    if (cur) lines.push(cur);
+  }
+  return lines;
+}
+function drawSub(ctx, text, w, h) {
+  if (!text) return;
+  const fs = Math.round(h * els.size.value / 100);
+  ctx.font = `700 ${fs}px "Segoe UI", Arial, Helvetica, sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.lineJoin = 'round';
+  const lines = wrap(ctx, text, w * 0.88), lh = fs * 1.3;
+  let y = h * 0.88 - (lines.length - 1) * lh;
+  const box = els.style.value === 'box';
+  for (const line of lines) {
+    if (box) {
+      const tw = ctx.measureText(line).width, pad = fs * 0.3;
+      ctx.fillStyle = 'rgba(0,0,0,0.72)';
+      ctx.fillRect(w / 2 - tw / 2 - pad, y - fs * 0.95, tw + pad * 2, fs * 1.25);
+    } else {
+      ctx.lineWidth = Math.max(2, fs * 0.18); ctx.strokeStyle = 'rgba(0,0,0,0.95)'; ctx.strokeText(line, w / 2, y);
+    }
+    ctx.fillStyle = '#fff'; ctx.fillText(line, w / 2, y);
+    y += lh;
+  }
+}
+function pickMime() {
+  const c = ['video/mp4;codecs=avc1.640028,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+  return c.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || '';
+}
+
+let cancelExport = null;
+els.cancel.onclick = () => cancelExport && cancelExport();
+
+els.exportBtn.onclick = async () => {
+  if (!file || !segments.length) return;
+  if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) {
+    els.exStatus.textContent = 'Tarayıcınız video kaydını desteklemiyor. Chrome veya Edge kullanın; ya da .SRT dosyasını indirin.'; return;
+  }
+  const actx = new (window.AudioContext || window.webkitAudioContext)(); // tıklama anında oluştur (izin için)
+  els.exportBtn.disabled = true; els.cancel.classList.remove('hidden'); els.result.innerHTML = '';
+  els.exBarWrap.classList.remove('hidden'); els.exBar.style.width = '0%';
+  els.exStatus.textContent = 'Hazırlanıyor…';
+  els.video.pause();
+
+  const v = document.createElement('video');
+  v.src = videoURL; v.playsInline = true; v.preload = 'auto';
+  await new Promise((r, j) => { v.onloadedmetadata = r; v.onerror = () => j(new Error('Video açılamadı')); });
+
+  let w = v.videoWidth || 1280, h = v.videoHeight || 720;
+  if (w > 1920) { h = Math.round(h * 1920 / w); w = 1920; }
+  w -= w % 2; h -= h % 2;
+  const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const list = cues();
+
+  const stream = canvas.captureStream(30);
+  try {
+    const src = actx.createMediaElementSource(v), dest = actx.createMediaStreamDestination();
+    src.connect(dest); dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+  } catch (e) { console.warn('Ses eklenemedi', e); }
+
+  const mime = pickMime();
+  const rec = new MediaRecorder(stream, { mimeType: mime || undefined, videoBitsPerSecond: Math.min(12e6, Math.max(2.5e6, w * h * 4)), audioBitsPerSecond: 192000 });
+  const chunks = []; rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  let stopped = false, raf = 0, cancelled = false;
+
+  const finish = () => new Promise(r => { if (stopped) return r(); stopped = true; rec.onstop = r; rec.stop(); });
+  cancelExport = async () => { cancelled = true; v.pause(); cancelAnimationFrame(raf); await finish(); };
+
+  const draw = () => {
+    ctx.drawImage(v, 0, 0, w, h);
+    drawSub(ctx, cueAt(list, v.currentTime), w, h);
+    if (v.duration) {
+      els.exBar.style.width = (v.currentTime / v.duration * 100).toFixed(1) + '%';
+      els.exStatus.textContent = `Kaydediliyor… ${fmt(v.currentTime).slice(0, 8)} / ${fmt(v.duration).slice(0, 8)}`;
+    }
+    if (!v.ended && !stopped) raf = requestAnimationFrame(draw);
+  };
+
+  try {
+    v.currentTime = 0;
+    await new Promise(r => { v.onseeked = r; setTimeout(r, 1500); });
+    draw();
+    await actx.resume();
+    rec.start(1000);
+    await v.play();
+    await new Promise(r => { v.onended = r; const chk = setInterval(() => { if (stopped) { clearInterval(chk); r(); } }, 300); });
+    draw(); await finish();
+    if (!cancelled) {
+      const type = (mime || 'video/webm').split(';')[0];
+      const blob = new Blob(chunks, { type });
+      const name = baseName() + '_turkce_altyazili.' + (type.includes('mp4') ? 'mp4' : 'webm');
+      const url = URL.createObjectURL(blob);
+      els.result.innerHTML = `<a class="result" href="${url}" download="${esc(name)}">⬇️ ${esc(name)} (${(blob.size / 1048576).toFixed(1)} MB) — tekrar indir</a>`;
+      download(blob, name);
+      els.exStatus.textContent = 'Tamamlandı!';
+      els.exBar.style.width = '100%';
+    } else els.exStatus.textContent = 'İptal edildi.';
+  } catch (err) {
+    console.error(err); els.exStatus.textContent = 'Hata: ' + err.message;
+  } finally {
+    cancelExport = null; actx.close(); v.removeAttribute('src'); v.load();
+    els.exportBtn.disabled = false; els.cancel.classList.add('hidden');
+  }
+};
+</script>
+</body>
+</html>
